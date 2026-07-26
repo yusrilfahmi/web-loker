@@ -27,7 +27,7 @@ const port = process.env.PORT || 5000;
 const upload = multer({ storage: multer.memoryStorage() });
 
 const openai = new OpenAI({
-  apiKey: process.env.QWEN_API_KEY,
+  apiKey: process.env.QWEN_API_KEY || "MISSING_API_KEY",
   baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 });
 
