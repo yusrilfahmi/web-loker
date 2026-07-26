@@ -221,7 +221,7 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
         <style>
           @page { size: A4; margin: 20mm 25.4mm; }
           * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.5; color: #000; position: relative; }
+          body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.5; color: #000; position: relative; }
           .ltr-date { text-align: right; margin-bottom: 14pt; margin-top: 0; }
           .ltr-line { margin-bottom: 0; line-height: 1.5; margin-top: 0; }
           .ltr-justify { text-align: justify; margin-top: 8pt; margin-bottom: 0; text-justify: inter-word; }
