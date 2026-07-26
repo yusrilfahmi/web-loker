@@ -131,26 +131,19 @@ ${userName}`;
   return (
     <div className="history-page">
       <div className="history-header">
-        <div>
+        <div className="history-header-title">
           <h1>Riwayat Lamaran</h1>
           <p>Pantau status semua lamaran pekerjaan yang pernah Anda buat.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div className="search-box" style={{ position: 'relative' }}>
-            <Search size={16} color="#6b7280" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+        <div className="history-header-actions">
+          <div className="history-search-box">
+            <Search size={16} color="#6b7280" className="search-icon" />
             <input 
               type="text" 
               placeholder="Cari nama perusahaan..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                padding: '10px 12px 10px 36px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-color)',
-                fontSize: '14px',
-                outline: 'none',
-                width: '240px'
-              }}
+              className="history-search-input"
             />
           </div>
           <button className="btn-new-app" onClick={() => navigate('/create')}>
@@ -199,17 +192,13 @@ ${userName}`;
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div className="hc-actions">
                   <button className="hc-detail-btn" onClick={() => setSelectedApp(app)}>
                     Detail <ChevronRight size={16} />
                   </button>
                   <button 
                     onClick={(e) => handleDelete(e, app.id)}
-                    style={{ 
-                      padding: '8px', border: '1.5px solid #fecaca', background: 'white', 
-                      color: '#ef4444', borderRadius: '8px', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}
+                    className="hc-delete-btn"
                     title="Hapus Riwayat"
                   >
                     <Trash2 size={16} />

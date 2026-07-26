@@ -4,24 +4,64 @@ import {
   Wand2, Edit3, Undo, Redo, Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight,
   Trash2, Plus, ArrowLeft, ArrowRight, Download, PenTool, FileText, Loader2,
-  ChevronUp, ChevronDown
+  ChevronUp, ChevronDown, Mail
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import './Step3Letter.css';
 
 const cleanFileName = (filename) => filename ? filename.replace(/\.[^/.]+$/, '') : '';
 
-const Step3Letter = ({ aiData, onNext, onBack }) => {
+const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
+  const navigate = useNavigate();
   const [attachments, setAttachments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [generatingAI, setGeneratingAI] = useState(false);
   const [aiError, setAiError] = useState('');
-  const [hasSignature, setHasSignature] = useState(false);
+  const [hasSignature, setHasSignature] = useState(true);
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergeError, setMergeError] = useState('');
   const [sigOffset, setSigOffset] = useState({ top: 15, right: 10 });
   const [sigBase64, setSigBase64] = useState('/signature.png');
   const [isDraggingSig, setIsDraggingSig] = useState(false);
   const dragStartRef = useRef({ mouseX: 0, mouseY: 0, startTop: 15, startRight: 10 });
   const paperRef = useRef(null);
+  const wrapperRef = useRef(null); // ref for the paper wrapper
+
+  // ── Dynamic paper scaling for mobile ──
+  useEffect(() => {
+    const A4_WIDTH_PX = 794; // 210mm at 96dpi
+
+    const applyScale = () => {
+      if (!wrapperRef.current || !paperRef.current) return;
+      const availableWidth = wrapperRef.current.offsetWidth;
+      if (availableWidth < A4_WIDTH_PX) {
+        const scale = Math.max(availableWidth / A4_WIDTH_PX, 0.3);
+        const naturalHeight = paperRef.current.scrollHeight;
+        paperRef.current.style.transform = `scale(${scale})`;
+        paperRef.current.style.transformOrigin = 'top center';
+        paperRef.current.style.marginTop = '0px';
+        // Collapse whitespace: after scale visual height = naturalHeight * scale
+        // So we need negative margin = naturalHeight * scale - naturalHeight
+        const negativeMargin = naturalHeight * (scale - 1);
+        paperRef.current.style.marginBottom = `${negativeMargin}px`;
+      } else {
+        paperRef.current.style.transform = '';
+        paperRef.current.style.transformOrigin = '';
+        paperRef.current.style.marginBottom = '';
+        paperRef.current.style.marginTop = '';
+      }
+    };
+
+    // Run after first paint so paper has its natural height
+    requestAnimationFrame(() => {
+      applyScale();
+    });
+
+    const ro = new ResizeObserver(applyScale);
+    if (wrapperRef.current) ro.observe(wrapperRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     fetchUserDocs();
@@ -206,6 +246,127 @@ const Step3Letter = ({ aiData, onNext, onBack }) => {
     setTimeout(() => { printWindow.print(); }, 400);
   };
 
+  const handleMergeAndSave = async (openGmail = false) => {
+    setIsMerging(true);
+    setMergeError('');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const formData = new FormData();
+      
+      const letterContent = getFinalLetterHtml();
+      formData.append('letterHtml', letterContent || '');
+      
+      const docIds = ['letter', ...attachments.map(a => a.id)];
+      formData.append('selectedDocs', JSON.stringify(docIds));
+
+      for (const doc of attachments) {
+        if (doc.storage_path) {
+          try {
+            const { data: fileBlob, error } = await supabase.storage
+              .from('user_documents').download(doc.storage_path);
+            if (!error && fileBlob) {
+              formData.append('pdfs', fileBlob, doc.name + '.pdf');
+            }
+          } catch (e) {
+            console.warn(`Skip ${doc.name}: ${e.message}`);
+          }
+        }
+      }
+
+      const res = await fetch('http://localhost:5000/api/merge-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Gagal menggabungkan PDF');
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Lamaran_${aiData?.company || 'Perusahaan'}_${aiData?.position || 'Posisi'}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      let jobImageUrl = null;
+      if (jobImage) {
+        try {
+          const res = await fetch(jobImage);
+          const blob = await res.blob();
+          const fileName = `job_${Date.now()}.jpg`;
+          const { data: uploadData } = await supabase.storage
+            .from('user_documents')
+            .upload(`${user.id}/jobs/${fileName}`, blob, { contentType: blob.type });
+          
+          if (uploadData) {
+            const { data } = supabase.storage
+              .from('user_documents')
+              .getPublicUrl(`${user.id}/jobs/${fileName}`);
+            jobImageUrl = data.publicUrl;
+          }
+        } catch (e) {
+          console.warn('Gagal upload job image:', e);
+        }
+      }
+
+      const payload = {
+        user_id: user.id,
+        company: aiData?.company || '',
+        position: aiData?.position || '',
+        location: aiData?.location || '',
+        type: aiData?.type || '',
+        education: aiData?.education || '',
+        experience: aiData?.experience || '',
+        email: aiData?.email || '',
+        description: aiData?.description || '',
+        status: 'draft',
+        created_at: new Date().toISOString(),
+      };
+      
+      if (jobImageUrl) {
+        payload.job_image_url = jobImageUrl;
+      }
+
+      const { error: dbError } = await supabase.from('applications').insert(payload);
+      if (dbError) console.error('Simpan DB gagal:', dbError);
+      
+      if (openGmail) {
+        const to = (aiData?.email && aiData.email !== 'Tidak disebutkan') ? aiData.email : '';
+        const pos = aiData?.position || 'Pekerjaan';
+        const comp = aiData?.company || 'Perusahaan';
+        const userName = user?.user_metadata?.full_name || user?.email || 'Pelamar';
+        
+        const subject = `${pos} - ${userName}`;
+        
+        const bodyText = `Yth. Tim Rekrutmen ${comp}\n\nDengan hormat,\n\nSehubungan dengan informasi lowongan pekerjaan yang dibuka oleh ${comp} untuk posisi ${pos}, melalui email ini saya bermaksud untuk mengajukan diri guna mengisi posisi tersebut.\n\nSebagai bahan pertimbangan Bapak/Ibu, bersama email ini saya lampirkan berkas dokumen lamaran kerja lengkap (Curriculum Vitae, Surat Lamaran, dan lampiran pendukung) dalam format PDF.\n\nBesar harapan saya untuk diberikan kesempatan mengikuti tahapan seleksi selanjutnya agar dapat mendiskusikan bagaimana kualifikasi saya dapat berkontribusi positif bagi ${comp}.\n\nTerima kasih atas waktu, perhatian, dan kesempatan yang Bapak/Ibu berikan.\n\nHormat saya,\n\n${userName}`;
+  
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+        
+        const gmailLink = document.createElement('a');
+        gmailLink.href = gmailUrl;
+        gmailLink.target = '_blank';
+        gmailLink.rel = 'noopener noreferrer';
+        document.body.appendChild(gmailLink);
+        gmailLink.click();
+        document.body.removeChild(gmailLink);
+        
+        // Let the user know they have to attach the PDF manually
+        alert("PENTING:\n\nFile PDF Lamaran Anda telah diunduh.\nSilakan seret (drag and drop) file PDF tersebut ke halaman Gmail yang baru saja terbuka.");
+      }
+
+      if (onComplete) onComplete();
+      navigate('/history');
+    } catch (err) {
+      console.error(err);
+      setMergeError(err.message);
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
   const company = aiData?.company || 'PT PETRO GRAHA MEDIKA';
   const position = aiData?.position || 'IT Staff';
   const location = aiData?.location || 'Gresik, Jawa Timur';
@@ -258,7 +419,7 @@ const Step3Letter = ({ aiData, onNext, onBack }) => {
             </div>
 
             {/* Paper */}
-            <div className="s3-paper-wrapper">
+            <div className="s3-paper-wrapper" ref={wrapperRef}>
               <div
                 ref={paperRef}
                 id="letter-print-area"
@@ -314,7 +475,6 @@ const Step3Letter = ({ aiData, onNext, onBack }) => {
                   Saya yakin bisa memberikan kontribusi maksimal di perusahaan Bapak/Ibu.
                   Sebagai bahan pertimbangan, bersama ini terlampir:
                 </p>
-                <br />
                 {/* Attachment List - Tanpa Ekstensi */}
                 <ul className="ltr-list">
                   {attachments.map(a => <li key={a.id}>{cleanFileName(a.name)}</li>)}
@@ -497,12 +657,24 @@ const Step3Letter = ({ aiData, onNext, onBack }) => {
       </div>
 
       {/* Footer Nav */}
-      <div className="s3-nav-footer">
-        <button className="s3-nav-back" onClick={onBack}><ArrowLeft size={16} /> Kembali</button>
-        <button className="s3-nav-next" onClick={() => onNext(getFinalLetterHtml(), attachments)}>
-          Lanjut ke Gabung Dokumen <ArrowRight size={16} />
+      <div className="s3-nav-footer" style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
+        <button className="s3-nav-back" onClick={onBack} disabled={isMerging}><ArrowLeft size={16} /> Kembali</button>
+        <button className="s3-nav-next" style={{ background: '#ef4444' }} onClick={() => handleMergeAndSave(true)} disabled={isMerging}>
+          {isMerging ? (
+            <><Loader2 size={16} className="spin" /> Memproses...</>
+          ) : (
+            <><Mail size={16} /> Kirim via Gmail</>
+          )}
+        </button>
+        <button className="s3-nav-next" onClick={() => handleMergeAndSave(false)} disabled={isMerging}>
+          {isMerging ? (
+            <><Loader2 size={16} className="spin" /> Memproses...</>
+          ) : (
+            <><Download size={16} /> Selesai & Unduh PDF</>
+          )}
         </button>
       </div>
+      {mergeError && <div style={{ color: 'red', textAlign: 'center', marginTop: '10px', fontSize: '13px' }}>{mergeError}</div>}
     </div>
   );
 };

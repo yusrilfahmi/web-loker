@@ -165,9 +165,36 @@
 .profile-input:disabled { background: #f9fafb; color: var(--text-muted); cursor: not-allowed; }
 
 /* Responsive */
+@media (max-width: 768px) {
+  .profile-avatar-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+  }
+  .profile-avatar-info { text-align: center; width: 100%; }
+  .profile-avatar-actions {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-left: 0;
+  }
+  .btn-edit, .btn-save, .btn-cancel {
+    flex: 1;
+    justify-content: center;
+    min-width: 120px;
+  }
+  .profile-form-card { padding: 18px; }
+  .profile-form-card h3 { font-size: 15px; }
+}
+
 @media (max-width: 640px) {
   .profile-form-grid { grid-template-columns: 1fr; }
-  .profile-avatar-card { flex-direction: column; text-align: center; }
-  .profile-avatar-actions { width: 100%; justify-content: center; }
-  .profile-avatar-info { text-align: center; }
+}
+
+@media (max-width: 375px) {
+  .profile-avatar-card { padding: 16px; }
+  .avatar-initials { width: 68px; height: 68px; font-size: 24px; }
+  .profile-avatar { width: 68px; height: 68px; min-width: 68px; }
 }

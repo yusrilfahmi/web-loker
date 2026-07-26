@@ -381,3 +381,100 @@
   color: var(--border-color);
   cursor: not-allowed;
 }
+
+/* ═══════════════════════════════════════════════
+   TABLET (≤900px)
+═══════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .docs-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* 1st card (upload) spans full width */
+  .docs-stats-grid > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   MOBILE (≤768px)
+═══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .docs-header h1 { font-size: 20px; }
+  .docs-header p  { font-size: 13px; }
+
+  .docs-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  /* filters: stack on mobile */
+  .docs-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .filter-dropdowns {
+    justify-content: flex-end;
+  }
+
+  .dropdown-btn {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  /* ── TABLE → scrollable container ── */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .docs-table {
+    min-width: 600px;
+  }
+
+  .docs-table th,
+  .docs-table td {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  /* hide less important columns on mobile */
+  .docs-table th:nth-child(3),
+  .docs-table td:nth-child(3),
+  .docs-table th:nth-child(4),
+  .docs-table td:nth-child(4) {
+    display: none;
+  }
+
+  /* docs footer */
+  .docs-footer {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .stat-card { padding: 14px; gap: 12px; }
+  .stat-icon-wrapper { width: 40px; height: 40px; }
+  .stat-value { font-size: 20px; }
+}
+
+/* ═══════════════════════════════════════════════
+   SMALL MOBILE (≤375px)
+═══════════════════════════════════════════════ */
+@media (max-width: 375px) {
+  .docs-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .docs-stats-grid > :first-child {
+    grid-column: 1;
+  }
+
+  .filter-dropdowns { flex-wrap: wrap; }
+}

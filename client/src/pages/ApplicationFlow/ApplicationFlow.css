@@ -1,72 +1,85 @@
+/* ═══════════════════════════════════════════════
+   APPLICATION FLOW – Stepper Header & Container
+═══════════════════════════════════════════════ */
+
 .flow-container {
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 
+/* ─── STEPPER WRAPPER ─── */
 .stepper-wrapper {
   background: var(--white);
-  padding: 24px 40px;
+  padding: 20px 40px;
   border-bottom: 1px solid var(--border-color);
-  margin: -40px -40px 0 -40px; /* Offset parent layout padding */
+  margin: -32px -40px 0 -40px; /* offset parent layout padding */
 }
 
 .stepper {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 1000px;
+  max-width: 900px;
   margin: 0 auto;
 }
 
+/* ─── STEP ITEM ─── */
 .step-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  opacity: 0.5;
+  gap: 10px;
+  opacity: 0.45;
   transition: all 0.3s;
+  min-width: 0;
 }
 
-.step-item.active, .step-item.completed {
+.step-item.active,
+.step-item.completed {
   opacity: 1;
 }
 
 .step-circle {
   width: 32px;
   height: 32px;
+  min-width: 32px;
   border-radius: 50%;
   background-color: var(--border-color);
   color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
+  transition: all 0.3s;
 }
 
 .step-item.active .step-circle {
-  background-color: var(--primary);
+  background: linear-gradient(135deg, #4F46E5, #7C3AED);
   color: white;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.4);
 }
 
 .step-item.completed .step-circle {
-  background-color: var(--success);
+  background: linear-gradient(135deg, #10B981, #059669);
   color: white;
 }
 
 .step-text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .step-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-main);
+  white-space: nowrap;
 }
 
 .step-desc {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--primary);
 }
 
@@ -78,20 +91,102 @@
   color: transparent;
 }
 
+/* ─── CONNECTOR LINE ─── */
 .step-line {
   flex: 1;
   height: 2px;
   background-color: var(--border-color);
-  margin: 0 16px;
-  position: relative;
-  /* Align with circle center */
-  transform: translateY(-8px); 
+  margin: 0 12px;
+  border-radius: 2px;
+  transform: translateY(-7px);
+  transition: background-color 0.4s;
+  min-width: 16px;
 }
 
 .completed-line {
-  background-color: var(--primary);
+  background: linear-gradient(90deg, #4F46E5, #7C3AED);
 }
 
+/* ─── STEP CONTENT ─── */
 .step-content-area {
-  padding-top: 8px;
+  padding-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════
+   TABLET (≤1024px)
+═══════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .stepper-wrapper {
+    padding: 16px 24px;
+    margin: -32px -40px 0 -40px;
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   MOBILE (≤768px)
+═══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .stepper-wrapper {
+    padding: 14px 16px;
+    /* match main-content mobile padding: 16px */
+    margin: -16px -16px 0 -16px;
+    overflow-x: auto;
+    /* hide scrollbar */
+    scrollbar-width: none;
+  }
+  .stepper-wrapper::-webkit-scrollbar { display: none; }
+
+  .stepper {
+    /* allow horizontal scroll on mobile */
+    min-width: max-content;
+    gap: 0;
+    justify-content: flex-start;
+  }
+
+  .step-item {
+    gap: 7px;
+  }
+
+  /* on mobile: hide step text for non-active steps to save space */
+  .step-item:not(.active) .step-text {
+    display: none;
+  }
+
+  .step-circle {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    font-size: 12px;
+  }
+
+  .step-title {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .step-desc {
+    font-size: 10px;
+  }
+
+  .step-line {
+    margin: 0 8px;
+    min-width: 20px;
+    transform: translateY(-6px);
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   SMALL MOBILE (≤375px)
+═══════════════════════════════════════════════ */
+@media (max-width: 375px) {
+  .step-circle {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+  }
+
+  .step-line {
+    min-width: 14px;
+    margin: 0 4px;
+  }
 }

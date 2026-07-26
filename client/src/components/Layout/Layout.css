@@ -1,36 +1,49 @@
+/* ═══════════════════════════════════════════════
+   LAYOUT – Navbar & Main Content
+   Desktop: horizontal top navbar
+   Mobile (≤768px): compact top bar + bottom nav
+═══════════════════════════════════════════════ */
+
 .layout-container {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
+/* ─── TOP NAVBAR ─────────────────────────────── */
 .navbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 40px;
-  height: 72px;
+  padding: 0 32px;
+  height: 64px;
   background-color: var(--white);
   border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 200;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
+/* ─── BRAND ─── */
 .nav-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
 }
 
 .logo-icon-small {
-  background-color: var(--primary);
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 8px rgba(79,70,229,0.35);
+  flex-shrink: 0;
 }
 
 .brand-text {
@@ -40,30 +53,36 @@
 
 .brand-title {
   font-weight: 700;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.2;
+  color: var(--text-main);
 }
 
 .brand-subtitle {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
+/* ─── DESKTOP NAV LINKS ─── */
 .nav-links {
   display: flex;
   height: 100%;
+  align-items: stretch;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 24px;
+  gap: 7px;
+  padding: 0 18px;
   color: var(--text-muted);
   font-weight: 500;
-  font-size: 14px;
+  font-size: 13.5px;
   position: relative;
   transition: color 0.2s;
+  white-space: nowrap;
+  text-decoration: none;
 }
 
 .nav-item:hover {
@@ -81,71 +100,192 @@
   left: 0;
   right: 0;
   height: 3px;
-  background-color: var(--primary);
+  background: linear-gradient(90deg, #4F46E5, #7C3AED);
   border-radius: 3px 3px 0 0;
 }
 
+/* ─── NAV ACTIONS ─── */
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 24px;
-}
-
-.btn-icon {
-  background: transparent;
-  color: var(--text-muted);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s;
-}
-
-.btn-icon:hover {
-  color: var(--text-main);
-}
-
-.badge {
-  position: absolute;
-  top: -4px;
-  right: -6px;
-  background-color: #EF4444;
-  color: white;
-  font-size: 10px;
-  font-weight: bold;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid white;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   cursor: pointer;
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   object-fit: cover;
+  border: 2px solid #ede9fe;
 }
 
 .user-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-main);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.btn-logout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #ef4444;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-logout:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+/* ─── MAIN CONTENT ─── */
 .main-content {
   flex: 1;
-  padding: 40px;
+  padding: 32px 40px;
   max-width: 1280px;
   margin: 0 auto;
   width: 100%;
+}
+
+/* ─── BOTTOM MOBILE NAV ─── */
+.mobile-bottom-nav {
+  display: none;
+}
+
+/* ═══════════════════════════════════════════════
+   TABLET  (≤1024px)
+═══════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .navbar { padding: 0 20px; }
+  .nav-item { padding: 0 12px; font-size: 13px; }
+  .user-name { display: none; }
+}
+
+/* ═══════════════════════════════════════════════
+   MOBILE  (≤768px)
+   – Top navbar: brand + avatar only
+   – Bottom tab bar: main navigation
+═══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 16px;
+    height: 56px;
+  }
+
+  /* hide desktop nav links on mobile */
+  .nav-links {
+    display: none;
+  }
+
+  /* hide user name & logout in top nav on mobile */
+  .user-name { display: none; }
+  .btn-logout { display: none; }
+
+  .avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .brand-subtitle {
+    display: none;
+  }
+
+  /* main content shrinks and adds padding-bottom for bottom nav */
+  .main-content {
+    padding: 16px;
+    padding-bottom: 76px; /* space for bottom nav */
+  }
+
+  /* ── BOTTOM NAV ── */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: var(--white);
+    border-top: 1px solid var(--border-color);
+    z-index: 300;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+    justify-content: space-around;
+    align-items: stretch;
+    padding: 0 4px;
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex: 1;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 6px 4px;
+    border-radius: 10px;
+    margin: 4px 2px;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .mobile-nav-item.active {
+    color: var(--primary);
+    background: #f0eeff;
+  }
+
+  .mobile-nav-item.active .mobile-nav-icon {
+    transform: scale(1.1);
+  }
+
+  .mobile-nav-icon {
+    transition: transform 0.2s;
+    line-height: 1;
+  }
+
+  .mobile-nav-label {
+    line-height: 1;
+    text-align: center;
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   SMALL MOBILE  (≤375px)
+═══════════════════════════════════════════════ */
+@media (max-width: 375px) {
+  .brand-title {
+    font-size: 14px;
+  }
+
+  .mobile-nav-label {
+    font-size: 9px;
+  }
+
+  .main-content {
+    padding: 12px;
+    padding-bottom: 72px;
+  }
 }

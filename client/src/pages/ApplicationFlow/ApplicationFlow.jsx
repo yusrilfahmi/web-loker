@@ -1,26 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Check } from 'lucide-react';
 import Step1Upload from './Step1Upload';
 import Step2Analysis from './Step2Analysis';
 import Step3Letter from './Step3Letter';
-import Step4Merge from './Step4Merge';
 import './ApplicationFlow.css';
 
 const ApplicationFlow = () => {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [jobImage, setJobImage] = useState(null);
-  const [aiData, setAiData] = useState(null);
-  const [letterHtml, setLetterHtml] = useState('');
-  const [selectedAttachments, setSelectedAttachments] = useState([]);
+  const [currentStep, setCurrentStep] = useState(() => {
+    const saved = sessionStorage.getItem('appFlowState');
+    return saved ? JSON.parse(saved).currentStep || 1 : 1;
+  });
+  const [jobImage, setJobImage] = useState(() => {
+    const saved = sessionStorage.getItem('appFlowState');
+    return saved ? JSON.parse(saved).jobImage || null : null;
+  });
+  const [aiData, setAiData] = useState(() => {
+    const saved = sessionStorage.getItem('appFlowState');
+    return saved ? JSON.parse(saved).aiData || null : null;
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('appFlowState', JSON.stringify({ currentStep, jobImage, aiData }));
+  }, [currentStep, jobImage, aiData]);
+
+  const handleComplete = () => {
+    sessionStorage.removeItem('appFlowState');
+  };
 
   const steps = [
     { id: 1, title: 'Upload Lowongan', subtitle: 'Selesai' },
     { id: 2, title: 'Analisis AI', subtitle: 'Selesai' },
-    { id: 3, title: 'Surat Lamaran', subtitle: 'AI membuat surat lamaran' },
-    { id: 4, title: 'Gabung Dokumen', subtitle: 'Gabungkan semua dokumen' }
+    { id: 3, title: 'Surat Lamaran', subtitle: 'Edit & Gabung' }
   ];
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
+  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 3));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
   return (
@@ -67,27 +80,16 @@ const ApplicationFlow = () => {
             jobImage={jobImage} 
             aiData={aiData} 
             onNext={nextStep} 
-            onBack={prevStep} 
+            onBack={prevStep}
+            onUpdateData={(updatedData) => setAiData(updatedData)}
           />
         )}
         {currentStep === 3 && (
           <Step3Letter 
-            aiData={aiData}
-            onNext={(html, attachments) => {
-              if (html) setLetterHtml(html);
-              if (attachments) setSelectedAttachments(attachments);
-              nextStep();
-            }}
-            onBack={prevStep}
-          />
-        )}
-        {currentStep === 4 && (
-          <Step4Merge 
             jobImage={jobImage}
             aiData={aiData}
-            letterHtml={letterHtml}
-            initialAttachments={selectedAttachments}
             onBack={prevStep}
+            onComplete={handleComplete}
           />
         )}
       </div>
