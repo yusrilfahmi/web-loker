@@ -1,0 +1,97 @@
+.flow-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.stepper-wrapper {
+  background: var(--white);
+  padding: 24px 40px;
+  border-bottom: 1px solid var(--border-color);
+  margin: -40px -40px 0 -40px; /* Offset parent layout padding */
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  opacity: 0.5;
+  transition: all 0.3s;
+}
+
+.step-item.active, .step-item.completed {
+  opacity: 1;
+}
+
+.step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--border-color);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.step-item.active .step-circle {
+  background-color: var(--primary);
+  color: white;
+}
+
+.step-item.completed .step-circle {
+  background-color: var(--success);
+  color: white;
+}
+
+.step-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.step-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.step-desc {
+  font-size: 12px;
+  color: var(--primary);
+}
+
+.step-item.completed .step-desc {
+  color: var(--success);
+}
+
+.step-item:not(.active):not(.completed) .step-desc {
+  color: transparent;
+}
+
+.step-line {
+  flex: 1;
+  height: 2px;
+  background-color: var(--border-color);
+  margin: 0 16px;
+  position: relative;
+  /* Align with circle center */
+  transform: translateY(-8px); 
+}
+
+.completed-line {
+  background-color: var(--primary);
+}
+
+.step-content-area {
+  padding-top: 8px;
+}

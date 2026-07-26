@@ -1,0 +1,124 @@
+.step1-container {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.step1-content {
+  width: 100%;
+  max-width: 640px;
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.step1-content h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.step1-content p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 32px;
+}
+
+.main-upload-area {
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-light);
+  transition: all 0.2s;
+  overflow: hidden;
+  position: relative;
+}
+
+.main-upload-area:hover {
+  border-color: var(--primary);
+  background-color: #f5f3ff;
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-circle {
+  width: 64px;
+  height: 64px;
+  background-color: var(--white);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 8px;
+}
+
+.preview-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.image-preview {
+  max-height: 400px;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.btn-change-image {
+  position: absolute;
+  bottom: 20px;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.btn-change-image:hover {
+  background: rgba(0,0,0,0.9);
+}
+
+.step1-actions {
+  margin-top: 32px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover:not(.disabled) {
+  background-color: var(--primary-hover);
+}
+
+.btn-primary.disabled {
+  background-color: #d1d5db;
+  cursor: not-allowed;
+}
