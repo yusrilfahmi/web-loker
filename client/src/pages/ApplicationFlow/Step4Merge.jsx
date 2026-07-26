@@ -167,7 +167,7 @@ const Step4Merge = ({ jobImage, aiData, letterHtml, initialAttachments = [], onB
         }
       }
 
-      const res = await fetch('http://localhost:5000/api/merge-pdf', {
+      const res = await fetch('https://web-loker-5vpr.vercel.app/api/merge-pdf', {
         method: 'POST',
         body: formData,
       });

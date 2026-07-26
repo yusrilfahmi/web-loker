@@ -182,7 +182,7 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
     setAiError('');
     try {
       const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-      const res = await fetch('http://localhost:5000/api/generate-letter', {
+      const res = await fetch('https://web-loker-5vpr.vercel.app/api/generate-letter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobData: aiData, userProfile }),
@@ -273,7 +273,7 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
         }
       }
 
-      const res = await fetch('http://localhost:5000/api/merge-pdf', {
+      const res = await fetch('https://web-loker-5vpr.vercel.app/api/merge-pdf', {
         method: 'POST',
         body: formData,
       });

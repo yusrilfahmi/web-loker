@@ -52,7 +52,7 @@ const Step1Upload = ({ onNext }) => {
       const formData = new FormData();
       formData.append('image', selectedFile);
 
-      const response = await fetch('http://localhost:5000/api/analyze-job', {
+      const response = await fetch('https://web-loker-5vpr.vercel.app/api/analyze-job', {
         method: 'POST',
         body: formData,
       });

@@ -6,6 +6,7 @@ const { OpenAI } = require('openai');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const fs = require('fs');
 const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 
 function getBrowserPath() {
   const paths = [
@@ -32,6 +33,11 @@ const openai = new OpenAI({
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+// ── 0. ROOT ROUTE ──────────────────────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.send('JobApply AI Backend is running on Vercel!');
+});
 
 // ── HELPER: parse JSON dari respon AI ──────────────────────────────────────
 function parseAIJson(text) {
@@ -175,13 +181,30 @@ app.post('/api/merge-pdf', upload.any(), async (req, res) => {
     // ── Buat halaman surat lamaran dari HTML menggunakan Puppeteer ───────
     if (selected.includes('letter') && letterHtml) {
       try {
-        const browserPath = getBrowserPath();
-        if (browserPath) {
-          const browser = await puppeteer.launch({
-            executablePath: browserPath,
-            headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        let browser;
+        
+        if (process.env.VERCEL) {
+          // Konfigurasi untuk Vercel Serverless Function
+          browser = await puppeteer.launch({
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless,
+            ignoreHTTPSErrors: true,
           });
+        } else {
+          // Konfigurasi untuk Local Windows
+          const browserPath = getBrowserPath();
+          if (browserPath) {
+            browser = await puppeteer.launch({
+              executablePath: browserPath,
+              headless: true,
+              args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+          }
+        }
+
+        if (browser) {
           const page = await browser.newPage();
 
           const fullHtml = `
@@ -280,6 +303,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend is running!' });
 });
 
-app.listen(port, () => {
-  console.log(`Server berjalan di port: ${port}`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`Server berjalan di port: ${port}`);
+  });
+}
+
+// Harus di-export agar Vercel bisa membacanya sebagai serverless function
+module.exports = app;
