@@ -5,7 +5,6 @@ const multer = require('multer');
 const { OpenAI } = require('openai');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const fs = require('fs');
-const puppeteer = require('puppeteer-core');
 const chromium = require('@sparticuz/chromium');
 
 function getBrowserPath() {
@@ -182,6 +181,9 @@ app.post('/api/merge-pdf', upload.any(), async (req, res) => {
     if (selected.includes('letter') && letterHtml) {
       try {
         let browser;
+        // Gunakan dynamic import untuk puppeteer-core (karena package-nya adalah ESM)
+        const puppeteerModule = await import('puppeteer-core');
+        const puppeteer = puppeteerModule.default || puppeteerModule;
         
         if (process.env.VERCEL) {
           // Konfigurasi untuk Vercel Serverless Function
