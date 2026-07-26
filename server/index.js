@@ -274,18 +274,20 @@ app.post('/api/merge-pdf', upload.any(), async (req, res) => {
       }
     }
 
-    // ── Gabungkan PDF yang dikirim frontend ───────────────────────────────
-    const pdfFiles = (req.files || []).filter(f => f.fieldname === 'pdfs');
-    console.log(`Menggabungkan ${pdfFiles.length} file PDF...`);
+    // ── Gabungkan PDF yang diunduh via URL (melewati limit Vercel) ──
+    const attachmentUrls = JSON.parse(req.body.attachmentUrls || '[]');
+    console.log(`Menggabungkan ${attachmentUrls.length} file PDF...`);
 
-    for (const file of pdfFiles) {
+    for (const attachment of attachmentUrls) {
       try {
-        const donor = await PDFDocument.load(file.buffer, { ignoreEncryption: true });
+        const response = await fetch(attachment.url);
+        const arrayBuffer = await response.arrayBuffer();
+        const donor = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
         const pages = await mergedPdf.copyPages(donor, donor.getPageIndices());
         pages.forEach(p => mergedPdf.addPage(p));
-        console.log(`  ✓ ${file.originalname} (${donor.getPageCount()} halaman)`);
+        console.log(`  ✓ ${attachment.name} (${donor.getPageCount()} halaman)`);
       } catch (e) {
-        console.warn(`  ✗ Skip ${file.originalname}: ${e.message}`);
+        console.warn(`  ✗ Skip ${attachment.name}: ${e.message}`);
       }
     }
 

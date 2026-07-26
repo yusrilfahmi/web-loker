@@ -259,19 +259,23 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
       const docIds = ['letter', ...attachments.map(a => a.id)];
       formData.append('selectedDocs', JSON.stringify(docIds));
 
+      const attachmentUrls = [];
       for (const doc of attachments) {
         if (doc.storage_path) {
           try {
-            const { data: fileBlob, error } = await supabase.storage
-              .from('user_documents').download(doc.storage_path);
-            if (!error && fileBlob) {
-              formData.append('pdfs', fileBlob, doc.name + '.pdf');
+            const { data, error } = await supabase.storage
+              .from('user_documents').createSignedUrl(doc.storage_path, 60); // URL berlaku 60 detik
+            
+            if (!error && data?.signedUrl) {
+              attachmentUrls.push({ name: doc.name, url: data.signedUrl });
             }
           } catch (e) {
-            console.warn(`Skip ${doc.name}: ${e.message}`);
+            console.warn(`Skip URL ${doc.name}: ${e.message}`);
           }
         }
       }
+      
+      formData.append('attachmentUrls', JSON.stringify(attachmentUrls));
 
       const res = await fetch('https://web-loker-5vpr.vercel.app/api/merge-pdf', {
         method: 'POST',
