@@ -250,10 +250,19 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
     setIsMerging(true);
     setMergeError('');
     
-    // Buka tab baru secara sinkron SEBELUM async await agar TIDAK DIBLOKIR oleh Popup Blocker browser
-    let gmailWindow = null;
+    // Jika via Gmail, BUKA TAB GMAIL INSTAN secara sinkron agar 100% TIDAK DIBLOKIR oleh Popup Blocker browser
     if (openGmail) {
-      gmailWindow = window.open('about:blank', '_blank');
+      const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+      const to = (aiData?.email && aiData.email !== 'Tidak disebutkan') ? aiData.email : '';
+      const pos = aiData?.position || 'Pekerjaan';
+      const comp = aiData?.company || 'Perusahaan';
+      const userName = userProfile?.full_name || 'Pelamar';
+      
+      const subject = `${pos} - ${userName}`;
+      const bodyText = `Yth. Tim Rekrutmen ${comp}\n\nDengan hormat,\n\nSehubungan dengan informasi lowongan pekerjaan yang dibuka oleh ${comp} untuk posisi ${pos}, melalui email ini saya bermaksud untuk mengajukan diri guna mengisi posisi tersebut.\n\nSebagai bahan pertimbangan Bapak/Ibu, bersama email ini saya lampirkan berkas dokumen lamaran kerja lengkap (Curriculum Vitae, Surat Lamaran, dan lampiran pendukung) dalam format PDF.\n\nBesar harapan saya untuk diberikan kesempatan mengikuti tahapan seleksi selanjutnya agar dapat mendiskusikan bagaimana kualifikasi saya dapat berkontribusi positif bagi ${comp}.\n\nTerima kasih atas waktu, perhatian, dan kesempatan yang Bapak/Ibu berikan.\n\nHormat saya,\n\n${userName}`;
+
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+      window.open(gmailUrl, '_blank');
     }
 
     try {
@@ -290,7 +299,6 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
       });
 
       if (!res.ok) {
-        if (gmailWindow) gmailWindow.close();
         const errData = await res.json();
         throw new Error(errData.error || 'Gagal menggabungkan PDF');
       }
@@ -345,30 +353,11 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
       const { error: dbError } = await supabase.from('applications').insert(payload);
       if (dbError) console.error('Simpan DB gagal:', dbError);
       
-      if (openGmail) {
-        const to = (aiData?.email && aiData.email !== 'Tidak disebutkan') ? aiData.email : '';
-        const pos = aiData?.position || 'Pekerjaan';
-        const comp = aiData?.company || 'Perusahaan';
-        const userName = user?.user_metadata?.full_name || user?.email || 'Pelamar';
-        
-        const subject = `${pos} - ${userName}`;
-        const bodyText = `Yth. Tim Rekrutmen ${comp}\n\nDengan hormat,\n\nSehubungan dengan informasi lowongan pekerjaan yang dibuka oleh ${comp} untuk posisi ${pos}, melalui email ini saya bermaksud untuk mengajukan diri guna mengisi posisi tersebut.\n\nSebagai bahan pertimbangan Bapak/Ibu, bersama email ini saya lampirkan berkas dokumen lamaran kerja lengkap (Curriculum Vitae, Surat Lamaran, dan lampiran pendukung) dalam format PDF.\n\nBesar harapan saya untuk diberikan kesempatan mengikuti tahapan seleksi selanjutnya agar dapat mendiskusikan bagaimana kualifikasi saya dapat berkontribusi positif bagi ${comp}.\n\nTerima kasih atas waktu, perhatian, dan kesempatan yang Bapak/Ibu berikan.\n\nHormat saya,\n\n${userName}`;
-  
-        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
-        
-        if (gmailWindow) {
-          gmailWindow.location.href = gmailUrl;
-        } else {
-          window.open(gmailUrl, '_blank');
-        }
-      }
-
       if (onComplete) {
         onComplete();
       }
       navigate('/history');
     } catch (err) {
-      if (gmailWindow) gmailWindow.close();
       console.error(err);
       setMergeError(err.message || 'Gagal menggabungkan PDF');
     } finally {

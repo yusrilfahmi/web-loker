@@ -214,11 +214,14 @@ app.post('/api/merge-pdf', upload.any(), async (req, res) => {
             <html>
             <head>
               <meta charset="UTF-8">
+              <link rel="preconnect" href="https://fonts.googleapis.com">
+              <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+              <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;600;700&display=swap" rel="stylesheet">
               <style>
                 @page { size: A4; margin: 18mm 25.4mm; }
                 * { box-sizing: border-box; margin: 0; padding: 0; }
                 body { 
-                  font-family: 'Times New Roman', Times, serif; 
+                  font-family: 'Arimo', Arial, Helvetica, sans-serif; 
                   font-size: 11pt; 
                   line-height: 1.5; 
                   color: #000; 
@@ -260,7 +263,7 @@ app.post('/api/merge-pdf', upload.any(), async (req, res) => {
             </body>
             </html>
           `;
-          await page.setContent(fullHtml, { waitUntil: 'load' }); // 'load' jauh lebih cepat daripada 'networkidle0'
+          await page.setContent(fullHtml, { waitUntil: 'networkidle0' });
           const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
           await browser.close();
 
