@@ -260,8 +260,7 @@ app.post('/api/merge-pdf', upload.any(), async (req, res) => {
             </body>
             </html>
           `;
-
-          await page.setContent(fullHtml, { waitUntil: 'networkidle0' });
+          await page.setContent(fullHtml, { waitUntil: 'load' }); // 'load' jauh lebih cepat daripada 'networkidle0'
           const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
           await browser.close();
 
@@ -274,20 +273,32 @@ app.post('/api/merge-pdf', upload.any(), async (req, res) => {
       }
     }
 
-    // ── Gabungkan PDF yang diunduh via URL (melewati limit Vercel) ──
+    // ── Gabungkan PDF yang diunduh via URL secara Paralel (Sangat Cepat) ──
     const attachmentUrls = JSON.parse(req.body.attachmentUrls || '[]');
     console.log(`Menggabungkan ${attachmentUrls.length} file PDF...`);
 
-    for (const attachment of attachmentUrls) {
+    const downloadedFiles = await Promise.all(
+      attachmentUrls.map(async (attachment) => {
+        try {
+          const response = await fetch(attachment.url);
+          const arrayBuffer = await response.arrayBuffer();
+          return { name: attachment.name, arrayBuffer };
+        } catch (e) {
+          console.warn(`Gagal unduh ${attachment.name}:`, e.message);
+          return null;
+        }
+      })
+    );
+
+    for (const file of downloadedFiles) {
+      if (!file) continue;
       try {
-        const response = await fetch(attachment.url);
-        const arrayBuffer = await response.arrayBuffer();
-        const donor = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+        const donor = await PDFDocument.load(file.arrayBuffer, { ignoreEncryption: true });
         const pages = await mergedPdf.copyPages(donor, donor.getPageIndices());
         pages.forEach(p => mergedPdf.addPage(p));
-        console.log(`  ✓ ${attachment.name} (${donor.getPageCount()} halaman)`);
+        console.log(`  ✓ ${file.name} (${donor.getPageCount()} halaman)`);
       } catch (e) {
-        console.warn(`  ✗ Skip ${attachment.name}: ${e.message}`);
+        console.warn(`  ✗ Skip ${file.name}: ${e.message}`);
       }
     }
 
