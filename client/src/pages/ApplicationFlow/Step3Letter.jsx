@@ -221,7 +221,7 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
         <style>
           @page { size: A4; margin: 20mm 25.4mm; }
           * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.5; color: #000; position: relative; }
+          body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.5; color: #000; position: relative; }
           .ltr-date { text-align: right; margin-bottom: 14pt; margin-top: 0; }
           .ltr-line { margin-bottom: 0; line-height: 1.5; margin-top: 0; }
           .ltr-justify { text-align: justify; margin-top: 8pt; margin-bottom: 0; text-justify: inter-word; }
@@ -249,6 +249,13 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
   const handleMergeAndSave = async (openGmail = false) => {
     setIsMerging(true);
     setMergeError('');
+    
+    // Buka tab baru secara sinkron SEBELUM async await agar TIDAK DIBLOKIR oleh Popup Blocker browser
+    let gmailWindow = null;
+    if (openGmail) {
+      gmailWindow = window.open('about:blank', '_blank');
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const formData = new FormData();
@@ -283,6 +290,7 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
       });
 
       if (!res.ok) {
+        if (gmailWindow) gmailWindow.close();
         const errData = await res.json();
         throw new Error(errData.error || 'Gagal menggabungkan PDF');
       }
@@ -344,28 +352,25 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
         const userName = user?.user_metadata?.full_name || user?.email || 'Pelamar';
         
         const subject = `${pos} - ${userName}`;
-        
         const bodyText = `Yth. Tim Rekrutmen ${comp}\n\nDengan hormat,\n\nSehubungan dengan informasi lowongan pekerjaan yang dibuka oleh ${comp} untuk posisi ${pos}, melalui email ini saya bermaksud untuk mengajukan diri guna mengisi posisi tersebut.\n\nSebagai bahan pertimbangan Bapak/Ibu, bersama email ini saya lampirkan berkas dokumen lamaran kerja lengkap (Curriculum Vitae, Surat Lamaran, dan lampiran pendukung) dalam format PDF.\n\nBesar harapan saya untuk diberikan kesempatan mengikuti tahapan seleksi selanjutnya agar dapat mendiskusikan bagaimana kualifikasi saya dapat berkontribusi positif bagi ${comp}.\n\nTerima kasih atas waktu, perhatian, dan kesempatan yang Bapak/Ibu berikan.\n\nHormat saya,\n\n${userName}`;
   
         const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
         
-        const gmailLink = document.createElement('a');
-        gmailLink.href = gmailUrl;
-        gmailLink.target = '_blank';
-        gmailLink.rel = 'noopener noreferrer';
-        document.body.appendChild(gmailLink);
-        gmailLink.click();
-        document.body.removeChild(gmailLink);
-        
-        // Let the user know they have to attach the PDF manually
-        alert("PENTING:\n\nFile PDF Lamaran Anda telah diunduh.\nSilakan seret (drag and drop) file PDF tersebut ke halaman Gmail yang baru saja terbuka.");
+        if (gmailWindow) {
+          gmailWindow.location.href = gmailUrl;
+        } else {
+          window.open(gmailUrl, '_blank');
+        }
       }
 
-      if (onComplete) onComplete();
+      if (onComplete) {
+        onComplete();
+      }
       navigate('/history');
     } catch (err) {
+      if (gmailWindow) gmailWindow.close();
       console.error(err);
-      setMergeError(err.message);
+      setMergeError(err.message || 'Gagal menggabungkan PDF');
     } finally {
       setIsMerging(false);
     }
