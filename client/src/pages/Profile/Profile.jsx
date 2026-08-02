@@ -87,19 +87,24 @@ const Profile = () => {
       .eq('id', user.id)
       .single();
 
+    // Filter out null/undefined from DB so they don't wipe localStorage data
+    const dbClean = data
+      ? Object.fromEntries(Object.entries(data).filter(([, v]) => v != null))
+      : {};
+
     const merged = {
       full_name: '', email: user?.email || '', phone: '', address: '',
       birthplace: '', birthdate: '', education: '', major: '', gpa: '',
       marital_status: 'Belum menikah',
       ...local,
-      ...data,
+      ...dbClean,
       email: user?.email || local.email || '',
     };
 
     setProfile(merged);
     localStorage.setItem('userProfile', JSON.stringify(merged));
 
-    const sigPath = data?.signature_path || local?.signature_path;
+    const sigPath = dbClean?.signature_path || local?.signature_path;
     if (sigPath) {
       try {
         const { data: urlData } = await supabase.storage
@@ -110,6 +115,7 @@ const Profile = () => {
     }
     setLoading(false);
   };
+
 
   const handleSave = async () => {
     setSaving(true);

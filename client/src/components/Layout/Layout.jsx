@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, Navigate, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { BriefcaseBusiness, FileText, User, LogOut, History, GitMerge } from 'lucide-react';
+import { BriefcaseBusiness, FileText, User, LogOut, History, GitMerge, Loader2 } from 'lucide-react';
 import './Layout.css';
 
 const Layout = () => {
@@ -16,6 +16,20 @@ const Layout = () => {
 
   if (!session) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Tampilkan loading spinner sementara profile sedang dimuat
+  if (!profileLoaded) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', flexDirection: 'column', gap: '16px',
+        background: 'var(--bg-main, #f5f6fa)'
+      }}>
+        <Loader2 size={36} style={{ animation: 'spin 1s linear infinite', color: '#4F46E5' }} />
+        <span style={{ color: '#6B7280', fontSize: '14px' }}>Memuat data profil...</span>
+      </div>
+    );
   }
 
   // Redirect ke profil jika belum lengkap dan bukan sedang di /profile

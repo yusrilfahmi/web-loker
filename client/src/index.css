@@ -79,3 +79,9 @@ img {
 
 /* ── Selection ── */
 ::selection { background: #EEF2FF; color: var(--primary); }
+
+/* ── Spin animation (used by loading spinners) ── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

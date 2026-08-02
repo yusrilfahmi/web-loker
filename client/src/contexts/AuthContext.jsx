@@ -29,37 +29,46 @@ export const AuthProvider = ({ children }) => {
       .eq('id', userId)
       .single();
 
-    const merged = { ...local, ...data };
+    // Filter out null/undefined values from Supabase so they don't override localStorage
+    const dbClean = data
+      ? Object.fromEntries(Object.entries(data).filter(([, v]) => v != null))
+      : {};
+
+    const merged = { ...local, ...dbClean };
     setProfile(merged);
     if (Object.keys(merged).length > 0) {
       localStorage.setItem('userProfile', JSON.stringify(merged));
     }
     setProfileLoaded(true);
+    setLoading(false);
   };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) loadProfile(session.user.id);
-      else { setLoading(false); setProfileLoaded(true); }
+      if (session?.user) {
+        loadProfile(session.user.id);
+      } else {
+        setLoading(false);
+        setProfileLoaded(true);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) loadProfile(session.user.id);
-      else { setProfileLoaded(true); }
-      setLoading(false);
+      if (session?.user) {
+        loadProfile(session.user.id);
+      } else {
+        setProfile(null);
+        setProfileLoaded(true);
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  // Mark loading false after profile attempt
-  useEffect(() => {
-    if (user !== undefined) setLoading(false);
-  }, [user, profile]);
 
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
