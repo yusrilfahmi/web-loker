@@ -80,11 +80,15 @@ const Profile = () => {
 
   const loadProfile = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
+
+    if (error) {
+      console.warn('Profile loadProfile error:', error.code, error.message);
+    }
 
     const merged = {
       full_name: '', email: user?.email || '', phone: '', address: '',
@@ -111,34 +115,39 @@ const Profile = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    // Persiapkan payload untuk Supabase DB (tanpa email)
-    let payload = { ...profile };
-    delete payload.email;
+    setMsg({ text: '', type: '' });
 
-    let attempts = 0;
+    // Whitelist: hanya kirim field profil yang kita kenal
+    const PROFILE_FIELDS = [
+      'full_name', 'phone', 'address', 'birthplace', 'birthdate',
+      'education', 'major', 'gpa', 'marital_status', 'signature_path'
+    ];
 
-    // Retry loop: jika ada kolom yang belum dibuat di DB Supabase, otomatis strip kolom tersebut & retry
-    while (attempts < 12) {
-      const res = await supabase.from('profiles').upsert({
-        id: user.id,
-        ...payload,
-      });
-      if (!res.error) break;
-
-      // Tangkap nama kolom missing dari pesan error PostgREST
-      const match = res.error.message?.match(/Could not find the '([^']+)' column/i);
-      if (match && match[1] && match[1] in payload) {
-        delete payload[match[1]];
-        attempts++;
-      } else {
-        break;
+    const payload = { id: user.id };
+    for (const key of PROFILE_FIELDS) {
+      if (profile[key] !== undefined) {
+        payload[key] = profile[key] || null;
       }
     }
+
+    console.log('handleSave payload:', payload);
+
+    const { error } = await supabase.from('profiles').upsert(payload);
+
+    if (error) {
+      console.error('Profile save error:', error);
+      setSaving(false);
+      setMsg({ text: `Gagal menyimpan: ${error.message}`, type: 'error' });
+      setTimeout(() => setMsg({ text: '', type: '' }), 5000);
+      return;
+    }
+
+    // Tunggu refreshProfile selesai agar AuthContext langsung ter-update
+    await refreshProfile();
 
     setSaving(false);
     setEditing(false);
     setMsg({ text: 'Profil berhasil disimpan!', type: 'success' });
-    refreshProfile();
     setTimeout(() => setMsg({ text: '', type: '' }), 3500);
   };
 

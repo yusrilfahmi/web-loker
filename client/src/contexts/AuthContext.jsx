@@ -22,12 +22,18 @@ export const AuthProvider = ({ children }) => {
 
   const loadProfile = async (userId) => {
     if (!userId) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
+    if (error) {
+      console.warn('loadProfile error:', error.code, error.message);
+      // PGRST116 = row not found → profile belum ada, bukan error fatal
+    }
+
+    console.log('loadProfile result:', data);
     setProfile(data || {});
     setProfileLoaded(true);
     setLoading(false);
