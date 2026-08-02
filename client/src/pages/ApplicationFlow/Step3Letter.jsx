@@ -202,6 +202,8 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
   const [isDraggingSig, setIsDraggingSig] = useState(false);
   const [sigOffset, setSigOffset] = useState({ top: 0, right: 0 });
   const dragStartRef = useRef(null);
+  const paperRef = useRef(null);
+  const wrapperRef = useRef(null);
 
   const [isMerging, setIsMerging] = useState(false);
   const [mergeError, setMergeError] = useState('');
