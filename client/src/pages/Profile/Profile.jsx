@@ -118,24 +118,24 @@ const Profile = () => {
     localStorage.setItem('userProfile', JSON.stringify(fullProfileData));
 
     // 2. Persiapkan payload untuk Supabase DB (tanpa email)
-    let payload = { ...profile };
+    let payload = {
+      ...profile,
+      updated_at: new Date().toISOString(),
+    };
     delete payload.email;
 
-    let error = null;
     let attempts = 0;
 
     // Retry loop: jika ada kolom yang belum dibuat di DB Supabase, otomatis strip kolom tersebut & retry
-    while (attempts < 10) {
+    while (attempts < 12) {
       const res = await supabase.from('profiles').upsert({
         id: user.id,
         ...payload,
-        updated_at: new Date().toISOString(),
       });
-      error = res.error;
-      if (!error) break;
+      if (!res.error) break;
 
       // Tangkap nama kolom missing dari pesan error PostgREST
-      const match = error.message?.match(/Could not find the '([^']+)' column/i);
+      const match = res.error.message?.match(/Could not find the '([^']+)' column/i);
       if (match && match[1] && match[1] in payload) {
         delete payload[match[1]];
         attempts++;
