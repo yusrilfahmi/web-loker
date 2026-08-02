@@ -10,25 +10,44 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const loadProfile = async (userId) => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    if (data) {
+      setProfile(data);
+      localStorage.setItem('userProfile', JSON.stringify(data));
+    }
+  };
+
   useEffect(() => {
-    // Check active sessions and sets the user
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
+      if (session?.user) loadProfile(session.user.id);
+      else setLoading(false);
     });
 
-    // Listen for changes on auth state (log in, log out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) loadProfile(session.user.id);
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Mark loading false after profile attempt
+  useEffect(() => {
+    if (user !== undefined) setLoading(false);
+  }, [user, profile]);
 
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
@@ -43,11 +62,20 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) console.error("Error signing out:", error.message);
+    setProfile(null);
+    localStorage.removeItem('userProfile');
+  };
+
+  const refreshProfile = async () => {
+    if (user) await loadProfile(user.id);
   };
 
   const value = {
     session,
     user,
+    profile,
+    setProfile,
+    refreshProfile,
     signInWithGoogle,
     signOut,
   };

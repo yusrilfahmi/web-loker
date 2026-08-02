@@ -1,37 +1,222 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Building, MapPin, Briefcase, User, Clock,
   Wand2, Edit3, Undo, Redo, Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight,
   Trash2, Plus, ArrowLeft, ArrowRight, Download, PenTool, FileText, Loader2,
-  ChevronUp, ChevronDown, Mail
+  ChevronUp, ChevronDown, Mail, Layers, Save, RotateCcw, X, CheckSquare
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import GmailModal from '../../components/GmailModal/GmailModal';
 import './Step3Letter.css';
 
 const cleanFileName = (filename) => filename ? filename.replace(/\.[^/.]+$/, '') : '';
 
+// ── Letter Templates ───────────────────────────────────────────────────────
+const buildTemplates = (company, position, userProfile, attachments) => {
+  const name     = userProfile?.full_name    || 'Nama Pelamar';
+  const place    = userProfile?.birthplace   || 'Kota';
+  const bdate    = userProfile?.birthdate
+    ? new Date(userProfile.birthdate).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })
+    : 'Tanggal Lahir';
+  const edu      = userProfile?.education    || 'Strata 1';
+  const major    = userProfile?.major        || '-';
+  const gpa      = userProfile?.gpa          || '-';
+  const marital  = userProfile?.marital_status || 'Belum menikah';
+  const address  = userProfile?.address      || 'Alamat';
+  const phone    = userProfile?.phone        || '-';
+  const today    = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+  const cityText = place || 'Kota';
+  const attachList = attachments.length
+    ? attachments.map(a => `<li>${cleanFileName(a.name)}</li>`).join('')
+    : '<li>Curriculum Vitae</li><li>Surat Lamaran</li>';
+
+  return [
+    {
+      id: 0,
+      label: '📋 Template Formal',
+      desc: 'Surat lamaran formal baku Indonesia',
+      html: `
+<p class="ltr-date">${cityText}, ${today}</p>
+<p class="ltr-line"><strong>Kepada Yth.</strong></p>
+<p class="ltr-line"><strong>Bapak/Ibu HRD</strong></p>
+<p class="ltr-line"><strong>${company.toUpperCase()}</strong></p>
+<br/>
+<p class="ltr-line"><strong>Dengan hormat,</strong></p>
+<p class="ltr-justify">
+  Sesuai informasi yang saya peroleh, terdapat lowongan pekerjaan pada perusahaan Bapak/Ibu.
+  Melalui surat lamaran ini, saya mengajukan diri melamar pekerjaan sebagai <strong>${position}</strong>.
+  Saya yang bertandatangan di bawah ini:
+</p>
+<table class="ltr-table">
+  <colgroup><col style="width:175px"/><col style="width:16px"/><col/></colgroup>
+  <tbody>
+    <tr><td>Nama</td><td>:</td><td>${name}</td></tr>
+    <tr><td>Tempat, Tanggal Lahir</td><td>:</td><td>${place}, ${bdate}</td></tr>
+    <tr><td>Pendidikan Terakhir</td><td>:</td><td>${edu}</td></tr>
+    <tr><td>Jurusan</td><td>:</td><td>${major}</td></tr>
+    <tr><td>IPK</td><td>:</td><td>${gpa}</td></tr>
+    <tr><td>Status Nikah</td><td>:</td><td>${marital}</td></tr>
+    <tr><td>Alamat</td><td>:</td><td>${address}</td></tr>
+    <tr><td>No. Telp</td><td>:</td><td>${phone}</td></tr>
+  </tbody>
+</table>
+<br/>
+<p class="ltr-justify">
+  Dengan ini saya mengajukan surat lamaran pekerjaan di perusahaan yang Bapak/Ibu pimpin
+  sebagai <strong>${position}</strong>. Saya adalah seorang yang bertanggung jawab dalam pekerjaan,
+  manajemen waktu, disiplin, mampu bekerja sebagai tim maupun individu, bersemangat dan mampu
+  bekerja di bawah tekanan. Sebagai bahan pertimbangan, bersama ini terlampir:
+</p>
+<ul class="ltr-list">${attachList}</ul>
+<br/>
+<p class="ltr-justify">
+  Besar harapan saya lamaran pekerjaan ini mendapat respon yang baik dari Bapak/Ibu.
+  Atas perhatian dan kesediaan Bapak/Ibu saya ucapkan terima kasih.
+</p>
+<br/>
+<div class="ltr-signoff-container" style="text-align:right;position:relative;margin-top:24px;page-break-inside:avoid">
+  <p class="ltr-signoff">Hormat Saya,</p>
+  <div style="height:65px"></div>
+  <p class="ltr-signoff"><strong>${name}</strong></p>
+</div>`
+    },
+    {
+      id: 1,
+      label: '🎓 Template Fresh Graduate',
+      desc: 'Menonjolkan potensi dan semangat belajar',
+      html: `
+<p class="ltr-date">${cityText}, ${today}</p>
+<p class="ltr-line"><strong>Kepada Yth.</strong></p>
+<p class="ltr-line"><strong>HRD ${company}</strong></p>
+<p class="ltr-line"><strong>${company.toUpperCase()}</strong></p>
+<br/>
+<p class="ltr-line"><strong>Dengan hormat,</strong></p>
+<p class="ltr-justify">
+  Dengan penuh semangat dan harapan, saya ${name}, seorang lulusan baru ${edu} Program Studi ${major},
+  mengajukan lamaran untuk posisi <strong>${position}</strong> di ${company}.
+  Meskipun baru memulai karier profesional, saya membawa semangat belajar yang tinggi, kemampuan adaptasi
+  yang cepat, serta fondasi akademik yang kuat (IPK ${gpa}) sebagai modal utama saya.
+</p>
+<br/>
+<p class="ltr-justify">Berikut adalah data diri saya:</p>
+<table class="ltr-table">
+  <colgroup><col style="width:175px"/><col style="width:16px"/><col/></colgroup>
+  <tbody>
+    <tr><td>Nama</td><td>:</td><td>${name}</td></tr>
+    <tr><td>Tempat, Tanggal Lahir</td><td>:</td><td>${place}, ${bdate}</td></tr>
+    <tr><td>Pendidikan Terakhir</td><td>:</td><td>${edu} – ${major}</td></tr>
+    <tr><td>IPK</td><td>:</td><td>${gpa}</td></tr>
+    <tr><td>Alamat</td><td>:</td><td>${address}</td></tr>
+    <tr><td>No. Telp</td><td>:</td><td>${phone}</td></tr>
+  </tbody>
+</table>
+<br/>
+<p class="ltr-justify">
+  Saya percaya bahwa kesempatan bergabung bersama ${company} akan menjadi langkah awal yang luar biasa
+  dalam perjalanan karier saya. Saya berkomitmen untuk terus belajar dan berkontribusi secara maksimal
+  demi kemajuan perusahaan. Sebagai bahan pertimbangan, saya lampirkan:
+</p>
+<ul class="ltr-list">${attachList}</ul>
+<br/>
+<p class="ltr-justify">
+  Besar harapan saya untuk dapat bertemu dan berdiskusi lebih lanjut mengenai kontribusi yang dapat
+  saya berikan. Atas perhatian Bapak/Ibu, saya ucapkan terima kasih.
+</p>
+<br/>
+<div class="ltr-signoff-container" style="text-align:right;position:relative;margin-top:24px;page-break-inside:avoid">
+  <p class="ltr-signoff">Hormat Saya,</p>
+  <div style="height:65px"></div>
+  <p class="ltr-signoff"><strong>${name}</strong></p>
+</div>`
+    },
+    {
+      id: 2,
+      label: '💼 Template Modern & Ringkas',
+      desc: 'Padat, langsung ke poin, cocok untuk startup',
+      html: `
+<p class="ltr-date">${cityText}, ${today}</p>
+<p class="ltr-line"><strong>Yth. Tim Rekrutmen ${company}</strong></p>
+<br/>
+<p class="ltr-line"><strong>Perihal: Lamaran Pekerjaan – ${position}</strong></p>
+<br/>
+<p class="ltr-justify">
+  Dengan hormat, saya ${name} (${place}, ${bdate} | ${edu} ${major} | IPK ${gpa}),
+  bermaksud melamar untuk posisi <strong>${position}</strong> yang saat ini dibuka di ${company}.
+</p>
+<br/>
+<p class="ltr-justify">
+  Saya memiliki latar belakang yang relevan dan telah membuktikan kemampuan saya melalui berbagai
+  proyek dan pengalaman. Saya dikenal sebagai individu yang proaktif, mampu bekerja dalam tim
+  maupun mandiri, serta berorientasi pada solusi.
+</p>
+<br/>
+<p class="ltr-justify"><strong>Kontak & Domisili:</strong></p>
+<table class="ltr-table">
+  <colgroup><col style="width:175px"/><col style="width:16px"/><col/></colgroup>
+  <tbody>
+    <tr><td>Alamat</td><td>:</td><td>${address}</td></tr>
+    <tr><td>No. Telp / WA</td><td>:</td><td>${phone}</td></tr>
+    <tr><td>Status</td><td>:</td><td>${marital}</td></tr>
+  </tbody>
+</table>
+<br/>
+<p class="ltr-justify">
+  Bersama surat ini, saya lampirkan berkas pendukung:
+</p>
+<ul class="ltr-list">${attachList}</ul>
+<br/>
+<p class="ltr-justify">
+  Saya sangat berharap dapat berkontribusi bagi ${company} dan siap untuk dihubungi
+  kapan saja untuk proses wawancara. Terima kasih atas kesempatan ini.
+</p>
+<br/>
+<div class="ltr-signoff-container" style="text-align:right;position:relative;margin-top:24px;page-break-inside:avoid">
+  <p class="ltr-signoff">Salam Profesional,</p>
+  <div style="height:65px"></div>
+  <p class="ltr-signoff"><strong>${name}</strong></p>
+</div>`
+    }
+  ];
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
   const navigate = useNavigate();
+
   const [attachments, setAttachments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
+  const [userProfile, setUserProfile] = useState({});
   const [generatingAI, setGeneratingAI] = useState(false);
   const [aiError, setAiError] = useState('');
-  const [hasSignature, setHasSignature] = useState(true);
+
+  const [hasSignature, setHasSignature] = useState(false);
+  const [sigBase64, setSigBase64] = useState(null);
+
   const [isMerging, setIsMerging] = useState(false);
   const [mergeError, setMergeError] = useState('');
+
   const [sigOffset, setSigOffset] = useState({ top: 15, right: 10 });
-  const [sigBase64, setSigBase64] = useState('/signature.png');
   const [isDraggingSig, setIsDraggingSig] = useState(false);
   const dragStartRef = useRef({ mouseX: 0, mouseY: 0, startTop: 15, startRight: 10 });
+
   const paperRef = useRef(null);
-  const wrapperRef = useRef(null); // ref for the paper wrapper
+  const wrapperRef = useRef(null);
 
-  // ── Dynamic paper scaling for mobile ──
+  // Template selector
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  // Gmail modal
+  const [showGmailModal, setShowGmailModal] = useState(false);
+  // Save indicator
+  const [savedIndicator, setSavedIndicator] = useState(false);
+
+  const SESSION_KEY = `letterContent_${aiData?.company}_${aiData?.position}`;
+
+  // ── Scale paper ────────────────────────────────────────────────────────────
   useEffect(() => {
-    const A4_WIDTH_PX = 794; // 210mm at 96dpi
-
+    const A4_WIDTH_PX = 794;
     const applyScale = () => {
       if (!wrapperRef.current || !paperRef.current) return;
       const availableWidth = wrapperRef.current.offsetWidth;
@@ -41,8 +226,6 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
         paperRef.current.style.transform = `scale(${scale})`;
         paperRef.current.style.transformOrigin = 'top center';
         paperRef.current.style.marginTop = '0px';
-        // Collapse whitespace: after scale visual height = naturalHeight * scale
-        // So we need negative margin = naturalHeight * scale - naturalHeight
         const negativeMargin = naturalHeight * (scale - 1);
         paperRef.current.style.marginBottom = `${negativeMargin}px`;
       } else {
@@ -52,47 +235,108 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
         paperRef.current.style.marginTop = '';
       }
     };
-
-    // Run after first paint so paper has its natural height
-    requestAnimationFrame(() => {
-      applyScale();
-    });
-
+    requestAnimationFrame(applyScale);
     const ro = new ResizeObserver(applyScale);
     if (wrapperRef.current) ro.observe(wrapperRef.current);
     return () => ro.disconnect();
   }, []);
 
+  // ── Init: load profile + docs + signature ─────────────────────────────────
   useEffect(() => {
-    fetchUserDocs();
-    // Load signature image as base64 for reliable PDF rendering
-    fetch('/signature.png')
-      .then(res => res.blob())
-      .then(blob => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (reader.result) setSigBase64(reader.result);
-        };
-        reader.readAsDataURL(blob);
-      })
-      .catch(err => console.warn('Sig base64 err:', err));
+    initData();
   }, []);
 
+  const initData = async () => {
+    // 1. Load user profile
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    const prof = profileData || JSON.parse(localStorage.getItem('userProfile') || '{}');
+    setUserProfile(prof);
+    localStorage.setItem('userProfile', JSON.stringify(prof));
+
+    // 2. Load signature from Supabase Storage
+    if (profileData?.signature_path) {
+      try {
+        const { data: urlData } = await supabase.storage
+          .from('signatures')
+          .createSignedUrl(profileData.signature_path, 3600);
+        if (urlData?.signedUrl) {
+          const res = await fetch(urlData.signedUrl);
+          const blob = await res.blob();
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (reader.result) {
+              setSigBase64(reader.result);
+              setHasSignature(true);
+            }
+          };
+          reader.readAsDataURL(blob);
+        }
+      } catch (e) {
+        console.warn('Sig load err:', e);
+      }
+    } else {
+      // fallback to static /signature.png
+      fetch('/signature.png')
+        .then(r => r.ok ? r.blob() : null)
+        .then(blob => {
+          if (!blob) return;
+          const reader = new FileReader();
+          reader.onloadend = () => { if (reader.result) setSigBase64(reader.result); };
+          reader.readAsDataURL(blob);
+        })
+        .catch(() => {});
+    }
+
+    // 3. Load docs
+    await fetchUserDocs(user);
+  };
+
+  const fetchUserDocs = async (user) => {
+    setLoadingDocs(true);
+    const { data } = await supabase
+      .from('user_documents')
+      .select('id, file_name, file_size, storage_path')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true });
+    if (data) {
+      const savedRenames = JSON.parse(localStorage.getItem('renamed_doc_names') || '{}');
+      setAttachments(data.map(d => ({
+        id: d.id,
+        name: savedRenames[d.id] || d.file_name,
+        storage_path: d.storage_path
+      })));
+    }
+    setLoadingDocs(false);
+  };
+
+  // ── After docs loaded, restore saved letter or apply default template ─────
+  useEffect(() => {
+    if (loadingDocs) return;
+    const saved = sessionStorage.getItem(SESSION_KEY);
+    if (saved && paperRef.current) {
+      paperRef.current.innerHTML = saved;
+    } else {
+      applyTemplate(0);
+    }
+  }, [loadingDocs]);
+
+  // ── Draggable signature ────────────────────────────────────────────────────
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isDraggingSig) return;
-      const deltaX = e.clientX - dragStartRef.current.mouseX;
-      const deltaY = e.clientY - dragStartRef.current.mouseY;
-      setSigOffset({
-        top: dragStartRef.current.startTop + deltaY,
-        right: dragStartRef.current.startRight - deltaX
-      });
+      const dx = e.clientX - dragStartRef.current.mouseX;
+      const dy = e.clientY - dragStartRef.current.mouseY;
+      setSigOffset({ top: dragStartRef.current.startTop + dy, right: dragStartRef.current.startRight - dx });
     };
-
-    const handleMouseUp = () => {
-      setIsDraggingSig(false);
-    };
-
+    const handleMouseUp = () => setIsDraggingSig(false);
     if (isDraggingSig) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
@@ -103,59 +347,47 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
     };
   }, [isDraggingSig]);
 
-  const fetchUserDocs = async () => {
-    setLoadingDocs(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoadingDocs(false); return; }
-    const { data } = await supabase
-      .from('user_documents')
-      .select('id, file_name, file_size, storage_path')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: true });
-    if (data) {
-      const savedRenames = JSON.parse(localStorage.getItem('renamed_doc_names') || '{}');
-      setAttachments(data.map(d => ({ 
-        id: d.id, 
-        name: savedRenames[d.id] || d.file_name, 
-        storage_path: d.storage_path 
-      })));
+  // ── Template Apply ─────────────────────────────────────────────────────────
+  const applyTemplate = useCallback((idx) => {
+    const company  = aiData?.company  || 'Perusahaan';
+    const position = aiData?.position || 'Posisi';
+    const templates = buildTemplates(company, position, userProfile, attachments);
+    if (paperRef.current) {
+      paperRef.current.innerHTML = templates[idx].html;
+      setHasSignature(false);
     }
-    setLoadingDocs(false);
+    setShowTemplateModal(false);
+    sessionStorage.removeItem(SESSION_KEY);
+  }, [userProfile, attachments, aiData]);
+
+  // ── Save edits ─────────────────────────────────────────────────────────────
+  const handleSaveEdits = () => {
+    if (paperRef.current) {
+      sessionStorage.setItem(SESSION_KEY, paperRef.current.innerHTML);
+      setSavedIndicator(true);
+      setTimeout(() => setSavedIndicator(false), 2500);
+    }
   };
 
-  const removeAttachment = (id) => setAttachments(prev => prev.filter(a => a.id !== id));
-
-  const moveAttachment = (index, direction) => {
-    const newAttachments = [...attachments];
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= newAttachments.length) return;
-    const [movedItem] = newAttachments.splice(index, 1);
-    newAttachments.splice(targetIndex, 0, movedItem);
-    setAttachments(newAttachments);
+  const handleResetLetter = () => {
+    if (!window.confirm('Reset ke template awal? Editan akan hilang.')) return;
+    sessionStorage.removeItem(SESSION_KEY);
+    applyTemplate(0);
   };
 
+  // ── Signature ──────────────────────────────────────────────────────────────
   const handleSigMouseDown = (e) => {
     e.preventDefault();
     setIsDraggingSig(true);
-    dragStartRef.current = {
-      mouseX: e.clientX,
-      mouseY: e.clientY,
-      startTop: sigOffset.top,
-      startRight: sigOffset.right
-    };
-  };
-
-  const handleToggleSignature = () => {
-    setHasSignature(prev => !prev);
+    dragStartRef.current = { mouseX: e.clientX, mouseY: e.clientY, startTop: sigOffset.top, startRight: sigOffset.right };
   };
 
   const getFinalLetterHtml = () => {
     if (!paperRef.current) return '';
     const clone = paperRef.current.cloneNode(true);
-    const badges = clone.querySelectorAll('.sig-drag-badge');
-    badges.forEach(b => b.remove());
+    clone.querySelectorAll('.sig-drag-badge').forEach(b => b.remove());
 
-    if (hasSignature) {
+    if (hasSignature && sigBase64) {
       const container = clone.querySelector('.ltr-signoff-container');
       if (container) {
         let sigEl = container.querySelector('.floating-signature-overlay');
@@ -164,24 +396,20 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
           sigEl.className = 'floating-signature-overlay';
           container.appendChild(sigEl);
         }
-        sigEl.style.position = 'absolute';
-        sigEl.style.top = `${sigOffset.top}px`;
-        sigEl.style.right = `${sigOffset.right}px`;
-        sigEl.style.zIndex = '100';
-        sigEl.innerHTML = `<img src="${sigBase64}" alt="Tanda Tangan" style="height: 75px; width: auto; display: block;" />`;
+        sigEl.style.cssText = `position:absolute;top:${sigOffset.top}px;right:${sigOffset.right}px;z-index:100;`;
+        sigEl.innerHTML = `<img src="${sigBase64}" alt="Tanda Tangan" style="height:75px;width:auto;display:block;" />`;
       }
     } else {
-      const sigEl = clone.querySelector('.floating-signature-overlay');
-      if (sigEl) sigEl.remove();
+      clone.querySelector('.floating-signature-overlay')?.remove();
     }
     return clone.innerHTML;
   };
 
+  // ── AI Generate ────────────────────────────────────────────────────────────
   const handleGenerateAI = async () => {
     setGeneratingAI(true);
     setAiError('');
     try {
-      const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
       const res = await fetch('https://web-loker-5vpr.vercel.app/api/generate-letter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -192,6 +420,7 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
       if (paperRef.current) {
         paperRef.current.innerHTML = data.letter;
         setHasSignature(false);
+        sessionStorage.removeItem(SESSION_KEY);
       }
     } catch (err) {
       setAiError('Gagal generate surat: ' + err.message);
@@ -200,108 +429,60 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      document.execCommand('insertText', false, '    ');
-    }
-  };
-
+  // ── Print ──────────────────────────────────────────────────────────────────
   const handlePrint = () => {
     const content = getFinalLetterHtml();
     const printWindow = window.open('', '_blank', 'width=900,height=700');
     if (!printWindow) return alert('Izinkan popup untuk mencetak PDF.');
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Surat Lamaran</title>
-        <style>
-          @page { size: A4; margin: 20mm 25.4mm; }
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.5; color: #000; position: relative; }
-          .ltr-date { text-align: right; margin-bottom: 14pt; margin-top: 0; }
-          .ltr-line { margin-bottom: 0; line-height: 1.5; margin-top: 0; }
-          .ltr-justify { text-align: justify; margin-top: 8pt; margin-bottom: 0; text-justify: inter-word; }
-          .ltr-signoff { text-align: right; margin-top: 0; margin-bottom: 0; }
-          .floating-signature-overlay { position: absolute; z-index: 100; }
-          .floating-signature-overlay img { height: 70px; width: auto; }
-          .ltr-table { border-collapse: collapse; width: 100%; margin: 0; }
-          .ltr-table td { padding: 1pt 0; vertical-align: top; font-size: 11pt; border: none; }
-          .ltr-table col:nth-child(1) { width: 175px; }
-          .ltr-table col:nth-child(2) { width: 16px; }
-          .ltr-list { margin: 0 0 0 20px; }
-          .ltr-list li { margin-bottom: 2pt; }
-          p { margin: 0; }
-          strong { font-weight: bold; }
-        </style>
-      </head>
-      <body>${content}</body>
-      </html>
-    `);
+    printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <title>Surat Lamaran</title>
+      <style>
+        @page { size: A4; margin: 20mm 25.4mm; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.5; color: #000; position: relative; }
+        .ltr-date { text-align: right; margin-bottom: 14pt; }
+        .ltr-line { margin-bottom: 0; line-height: 1.5; }
+        .ltr-justify { text-align: justify; margin-top: 8pt; text-justify: inter-word; }
+        .ltr-signoff { text-align: right; }
+        .floating-signature-overlay { position: absolute; z-index: 100; }
+        .floating-signature-overlay img { height: 70px; width: auto; }
+        .ltr-table { border-collapse: collapse; width: 100%; }
+        .ltr-table td { padding: 1pt 0; vertical-align: top; font-size: 11pt; border: none; }
+        .ltr-table col:nth-child(1) { width: 175px; }
+        .ltr-table col:nth-child(2) { width: 16px; }
+        .ltr-list { margin: 0 0 0 20px; }
+        .ltr-list li { margin-bottom: 2pt; }
+        p { margin: 0; } strong { font-weight: bold; }
+      </style></head><body>${content}</body></html>`);
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => { printWindow.print(); }, 400);
   };
 
-  const handleMergeAndSave = async (openGmail = false) => {
+  // ── Merge & Save ──────────────────────────────────────────────────────────
+  const handleMergeAndSave = async () => {
     setIsMerging(true);
     setMergeError('');
-    
-    // Jika via Gmail, BUKA TAB GMAIL INSTAN secara sinkron agar 100% TIDAK DIBLOKIR oleh Popup Blocker browser
-    if (openGmail) {
-      const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-      const to = (aiData?.email && aiData.email !== 'Tidak disebutkan') ? aiData.email : '';
-      const pos = aiData?.position || 'Pekerjaan';
-      const comp = aiData?.company || 'Perusahaan';
-      const userName = userProfile?.full_name || 'Pelamar';
-      
-      const subject = `${pos} - ${userName}`;
-      const bodyText = `Yth. Tim Rekrutmen ${comp}\n\nDengan hormat,\n\nSehubungan dengan informasi lowongan pekerjaan yang dibuka oleh ${comp} untuk posisi ${pos}, melalui email ini saya bermaksud untuk mengajukan diri guna mengisi posisi tersebut.\n\nSebagai bahan pertimbangan Bapak/Ibu, bersama email ini saya lampirkan berkas dokumen lamaran kerja lengkap (Curriculum Vitae, Surat Lamaran, dan lampiran pendukung) dalam format PDF.\n\nBesar harapan saya untuk diberikan kesempatan mengikuti tahapan seleksi selanjutnya agar dapat mendiskusikan bagaimana kualifikasi saya dapat berkontribusi positif bagi ${comp}.\n\nTerima kasih atas waktu, perhatian, dan kesempatan yang Bapak/Ibu berikan.\n\nHormat saya,\n\n${userName}`;
-
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
-      window.open(gmailUrl, '_blank');
-    }
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const formData = new FormData();
-      
-      const letterContent = getFinalLetterHtml();
-      formData.append('letterHtml', letterContent || '');
-      
-      const docIds = ['letter', ...attachments.map(a => a.id)];
-      formData.append('selectedDocs', JSON.stringify(docIds));
+      formData.append('letterHtml', getFinalLetterHtml() || '');
+      formData.append('selectedDocs', JSON.stringify(['letter', ...attachments.map(a => a.id)]));
 
       const attachmentUrls = [];
       for (const doc of attachments) {
         if (doc.storage_path) {
           try {
             const { data, error } = await supabase.storage
-              .from('user_documents').createSignedUrl(doc.storage_path, 60); // URL berlaku 60 detik
-            
-            if (!error && data?.signedUrl) {
-              attachmentUrls.push({ name: doc.name, url: data.signedUrl });
-            }
-          } catch (e) {
-            console.warn(`Skip URL ${doc.name}: ${e.message}`);
-          }
+              .from('user_documents').createSignedUrl(doc.storage_path, 60);
+            if (!error && data?.signedUrl) attachmentUrls.push({ name: doc.name, url: data.signedUrl });
+          } catch (e) { console.warn(`Skip URL ${doc.name}:`, e.message); }
         }
       }
-      
       formData.append('attachmentUrls', JSON.stringify(attachmentUrls));
 
-      const res = await fetch('https://web-loker-5vpr.vercel.app/api/merge-pdf', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Gagal menggabungkan PDF');
-      }
+      const res = await fetch('https://web-loker-5vpr.vercel.app/api/merge-pdf', { method: 'POST', body: formData });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Gagal merge PDF'); }
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -311,25 +492,19 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
       a.click();
       URL.revokeObjectURL(url);
 
+      // Save job image
       let jobImageUrl = null;
       if (jobImage) {
         try {
-          const res = await fetch(jobImage);
-          const blob = await res.blob();
-          const fileName = `job_${Date.now()}.jpg`;
-          const { data: uploadData } = await supabase.storage
-            .from('user_documents')
-            .upload(`${user.id}/jobs/${fileName}`, blob, { contentType: blob.type });
-          
-          if (uploadData) {
-            const { data } = supabase.storage
-              .from('user_documents')
-              .getPublicUrl(`${user.id}/jobs/${fileName}`);
-            jobImageUrl = data.publicUrl;
+          const r = await fetch(jobImage);
+          const b = await r.blob();
+          const fn = `job_${Date.now()}.jpg`;
+          const { data: up } = await supabase.storage.from('user_documents').upload(`${user.id}/jobs/${fn}`, b, { contentType: b.type });
+          if (up) {
+            const { data: pub } = supabase.storage.from('user_documents').getPublicUrl(`${user.id}/jobs/${fn}`);
+            jobImageUrl = pub.publicUrl;
           }
-        } catch (e) {
-          console.warn('Gagal upload job image:', e);
-        }
+        } catch (e) { console.warn('Job image upload err:', e); }
       }
 
       const payload = {
@@ -344,18 +519,13 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
         description: aiData?.description || '',
         status: 'draft',
         created_at: new Date().toISOString(),
+        ...(jobImageUrl && { job_image_url: jobImageUrl }),
       };
-      
-      if (jobImageUrl) {
-        payload.job_image_url = jobImageUrl;
-      }
-
       const { error: dbError } = await supabase.from('applications').insert(payload);
       if (dbError) console.error('Simpan DB gagal:', dbError);
-      
-      if (onComplete) {
-        onComplete();
-      }
+
+      sessionStorage.removeItem(SESSION_KEY);
+      if (onComplete) onComplete();
       navigate('/history');
     } catch (err) {
       console.error(err);
@@ -365,19 +535,49 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
     }
   };
 
-  const company = aiData?.company || 'PT PETRO GRAHA MEDIKA';
-  const position = aiData?.position || 'IT Staff';
-  const location = aiData?.location || 'Gresik, Jawa Timur';
-  const experience = aiData?.experience || '1 - 3 Tahun';
-  const type = aiData?.type || 'Full Time';
+  const company  = aiData?.company   || 'PT PERUSAHAAN';
+  const position = aiData?.position  || 'Posisi';
+  const location = aiData?.location  || '-';
+  const experience = aiData?.experience || '-';
+  const type     = aiData?.type      || '-';
 
   return (
     <div className="step3-container">
-      <div className="step3-layout">
+      {/* ── Template Modal ── */}
+      {showTemplateModal && (
+        <div className="template-modal-overlay" onClick={() => setShowTemplateModal(false)}>
+          <div className="template-modal" onClick={e => e.stopPropagation()}>
+            <div className="template-modal-header">
+              <h3><Layers size={18} style={{ marginRight: 8, verticalAlign: 'middle' }} />Pilih Template Surat</h3>
+              <button onClick={() => setShowTemplateModal(false)} className="template-modal-close"><X size={18} /></button>
+            </div>
+            <p className="template-modal-sub">Pilih salah satu template. Editan saat ini akan diganti.</p>
+            <div className="template-list">
+              {buildTemplates(company, position, userProfile, attachments).map((t, idx) => (
+                <button key={t.id} className="template-card-btn" onClick={() => applyTemplate(idx)}>
+                  <div className="tcb-info">
+                    <span className="tcb-label">{t.label}</span>
+                    <span className="tcb-desc">{t.desc}</span>
+                  </div>
+                  <ArrowRight size={16} />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
-        {/* ─── Middle Panel: Editor ─── */}
+      {/* ── Gmail Modal ── */}
+      <GmailModal
+        isOpen={showGmailModal}
+        onClose={() => setShowGmailModal(false)}
+        aiData={aiData}
+        userProfile={userProfile}
+      />
+
+      <div className="step3-layout">
+        {/* ─── Middle Panel ─── */}
         <div className="step3-middle-panel">
-          {/* Header */}
           <div className="s3-editor-header">
             <div className="s3-editor-title">
               <div className="s3-title-icon"><FileText size={18} color="var(--primary)" /></div>
@@ -386,34 +586,43 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
                 <p>Buat dan sesuaikan surat lamaran Anda sebelum melanjutkan.</p>
               </div>
             </div>
-            {aiError && <p style={{color:'#dc2626', fontSize:'13px', marginTop:'8px'}}>{aiError}</p>}
+            <div className="s3-header-actions">
+              <button className="s3-btn-template" onClick={() => setShowTemplateModal(true)}>
+                <Layers size={14} /> Pilih Template
+              </button>
+              <button
+                className="s3-btn-ai"
+                onClick={handleGenerateAI}
+                disabled={generatingAI}
+              >
+                {generatingAI ? <><Loader2 size={14} className="spin" /> Generating...</> : <><Wand2 size={14} /> Generate AI</>}
+              </button>
+            </div>
+            {aiError && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '8px' }}>{aiError}</p>}
           </div>
 
-          {/* Toolbar */}
           <div className="s3-editor-box">
+            {/* Toolbar */}
             <div className="s3-toolbar">
-              <button className="s3-tool"><Undo size={15} /></button>
-              <button className="s3-tool"><Redo size={15} /></button>
+              <button className="s3-tool" title="Undo" onClick={() => document.execCommand('undo')}><Undo size={15} /></button>
+              <button className="s3-tool" title="Redo" onClick={() => document.execCommand('redo')}><Redo size={15} /></button>
               <div className="s3-divider" />
-              <select className="s3-select" style={{width: 56}}>
-                <option>100%</option>
+              <select className="s3-select" style={{ width: 56 }} onChange={e => document.execCommand('fontSize', false, e.target.value)}>
+                <option value="2">100%</option>
               </select>
-              <select className="s3-select" style={{width: 136}}>
-                <option>Times New Roman</option>
+              <select className="s3-select" style={{ width: 136 }} onChange={e => document.execCommand('fontName', false, e.target.value)}>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Arial">Arial</option>
+                <option value="Georgia">Georgia</option>
               </select>
-              <div className="s3-size-ctrl">
-                <button className="s3-tool">−</button>
-                <span>11</span>
-                <button className="s3-tool">+</button>
-              </div>
               <div className="s3-divider" />
-              <button className="s3-tool"><Bold size={15} /></button>
-              <button className="s3-tool"><Italic size={15} /></button>
-              <button className="s3-tool"><Underline size={15} /></button>
+              <button className="s3-tool" onClick={() => document.execCommand('bold')}><Bold size={15} /></button>
+              <button className="s3-tool" onClick={() => document.execCommand('italic')}><Italic size={15} /></button>
+              <button className="s3-tool" onClick={() => document.execCommand('underline')}><Underline size={15} /></button>
               <div className="s3-divider" />
-              <button className="s3-tool s3-active"><AlignLeft size={15} /></button>
-              <button className="s3-tool"><AlignCenter size={15} /></button>
-              <button className="s3-tool"><AlignRight size={15} /></button>
+              <button className="s3-tool" onClick={() => document.execCommand('justifyLeft')}><AlignLeft size={15} /></button>
+              <button className="s3-tool" onClick={() => document.execCommand('justifyCenter')}><AlignCenter size={15} /></button>
+              <button className="s3-tool" onClick={() => document.execCommand('justifyRight')}><AlignRight size={15} /></button>
             </div>
 
             {/* Paper */}
@@ -424,189 +633,79 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
                 className="s3-paper"
                 contentEditable
                 suppressContentEditableWarning
-                onKeyDown={handleKeyDown}
-              >
-                {/* Date — rata kanan */}
-                <br />
-                <p className="ltr-date">Gresik, {new Date().toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'})}</p>
+                onKeyDown={e => {
+                  if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '    '); }
+                }}
+              />
 
-                {/* Recipient */}
-                <p className="ltr-line"><strong>Kepada Yth.</strong></p>
-                <p className="ltr-line"><strong>Bapak/Ibu HRD</strong></p>
-                <p className="ltr-line"><strong>{company.toUpperCase()}</strong></p>
-                <br />
-
-                {/* Salutation */}
-                <p className="ltr-line"><strong>Dengan hormat,</strong></p>
-                <p className="ltr-justify">
-                  Sesuai informasi yang saya bahwa terdapat lowongan pekerjaan pada perusahaan Bapak/Ibu.
-                  Melalui surat lamaran ini, saya mengajukan diri melamar pekerjaan sebagai <strong>{position}</strong>.
-                  Saya yang bertandatangan di bawah ini:
-                </p>
-
-                {/* Personal Data Table */}
-                <table className="ltr-table">
-                  <colgroup>
-                    <col style={{width:'175px'}} />
-                    <col style={{width:'16px'}} />
-                    <col />
-                  </colgroup>
-                  <tbody>
-                    <tr><td>Nama</td><td>:</td><td>Yusril Fahmi</td></tr>
-                    <tr><td>Tempat, Tanggal Lahir</td><td>:</td><td>Gresik, 23 November 2001</td></tr>
-                    <tr><td>Pendidikan Terakhir</td><td>:</td><td>Strata 1</td></tr>
-                    <tr><td>Jurusan</td><td>:</td><td>Teknik Informatika</td></tr>
-                    <tr><td>IPK</td><td>:</td><td>3.82</td></tr>
-                    <tr><td>Status Nikah</td><td>:</td><td>Belum menikah</td></tr>
-                    <tr><td>Alamat</td><td>:</td><td>Cerme Indah Jl Kurma Blok O Nomor 235 RT 6 RW 4</td></tr>
-                    <tr><td>No. Telp</td><td>:</td><td>085156804614</td></tr>
-                  </tbody>
-                </table>
-
-                {/* Body */}
-                <p className="ltr-justify">
-                  Dengan ini saya mengajukan surat lamaran pekerjaan di perusahaan yang Bapak/Ibu pimpin sebagai{' '}
-                  <strong>{position}</strong>, saya adalah seorang yang bertanggung jawab dalam pekerjaan,
-                  manajemen waktu, disiplin, mampu bekerja sebagai tim maupun individu, bersemangat dan mampu
-                  bekerja dibawah tekanan. Berbekal pengalaman yang saya miliki, menjadi bekal bagi saya untuk
-                  bekerja sebagai <strong>{position}</strong> di <strong>{company.toUpperCase()}</strong>.
-                  Saya yakin bisa memberikan kontribusi maksimal di perusahaan Bapak/Ibu.
-                  Sebagai bahan pertimbangan, bersama ini terlampir:
-                </p>
-                {/* Attachment List - Tanpa Ekstensi */}
-                <ul className="ltr-list">
-                  {attachments.map(a => <li key={a.id}>{cleanFileName(a.name)}</li>)}
-                </ul>
-
-                {/* Closing */}
-                <p className="ltr-justify">
-                  Besar harapan saya lamaran pekerjaan ini mendapat respon yang baik dari Bapak/Ibu.
-                  Atas perhatian dan kesediaan Bapak/Ibu saya ucapkan terima kasih.
-                </p>
-                <br />
-                <br />
-                <br />
-                <br />
-
-                {/* Sign off — rata kanan */}
-                <div className="ltr-signoff-container" style={{ textAlign: 'right', position: 'relative', marginTop: '24px', pageBreakInside: 'avoid' }}>
-                  <p className="ltr-signoff">Hormat Saya</p>
-                  <div style={{ height: '65px' }}></div>
-                  <p className="ltr-signoff">Yusril Fahmi</p>
-
-                  {/* Floating Sticker Signature Overlay */}
-                  {hasSignature && (
-                    <div
-                      className="floating-signature-overlay"
-                      style={{
-                        position: 'absolute',
-                        top: `${sigOffset.top}px`,
-                        right: `${sigOffset.right}px`,
-                      }}
-                      onMouseDown={handleSigMouseDown}
-                    >
-                      <img
-                        src={sigBase64}
-                        alt="Tanda Tangan"
-                        draggable={false}
-                        style={{ height: '75px', width: 'auto', display: 'block', pointerEvents: 'none' }}
-                      />
-                      <div 
-                        className="sig-drag-badge"
-                        style={{
-                          position: 'absolute',
-                          bottom: -18,
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          fontSize: '10px',
-                          background: 'rgba(99, 102, 241, 0.95)',
-                          color: 'white',
-                          padding: '1px 6px',
-                          borderRadius: '8px',
-                          whiteSpace: 'nowrap',
-                          pointerEvents: 'none',
-                          fontWeight: '600',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                        }}
-                      >
-                        Geser ✥
-                      </div>
-                    </div>
-                  )}
+              {/* Floating signature overlay on paper */}
+              {hasSignature && sigBase64 && (
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+                  <div
+                    className="floating-signature-overlay"
+                    style={{
+                      position: 'absolute',
+                      bottom: `${sigOffset.top + 80}px`,
+                      right: `${sigOffset.right + 20}px`,
+                      pointerEvents: 'all',
+                      cursor: 'grab',
+                    }}
+                    onMouseDown={handleSigMouseDown}
+                  >
+                    <img
+                      src={sigBase64}
+                      alt="Tanda Tangan"
+                      draggable={false}
+                      style={{ height: '75px', width: 'auto', display: 'block', pointerEvents: 'none' }}
+                    />
+                    <div className="sig-drag-badge">Geser ✥</div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Footer */}
-            <div className="s3-editor-footer">
-              <span>A4 (210 × 297 mm)</span>
-            </div>
+            <div className="s3-editor-footer"><span>A4 (210 × 297 mm)</span></div>
           </div>
 
           {/* Actions below editor */}
           <div className="s3-bottom-actions">
             <button className="s3-btn-outline" onClick={handlePrint}><Download size={14} /> Unduh PDF</button>
-            <button 
+            <button
               className={`s3-btn-outline ${hasSignature ? 'active-signature' : ''}`}
-              onClick={handleToggleSignature}
-              style={{
-                borderColor: hasSignature ? 'var(--primary)' : undefined,
-                color: hasSignature ? 'var(--primary)' : undefined,
-                backgroundColor: hasSignature ? '#f5f3ff' : undefined
-              }}
+              onClick={() => setHasSignature(prev => !prev)}
+              style={{ borderColor: hasSignature ? 'var(--primary)' : undefined, color: hasSignature ? 'var(--primary)' : undefined, backgroundColor: hasSignature ? '#f5f3ff' : undefined }}
             >
               <PenTool size={14} /> {hasSignature ? 'Hapus Tanda Tangan' : 'Pasang Tanda Tangan'}
+            </button>
+            <button className={`s3-btn-outline ${savedIndicator ? 'saved-indicator' : ''}`} onClick={handleSaveEdits}>
+              {savedIndicator ? <><CheckSquare size={14} /> Tersimpan!</> : <><Save size={14} /> Simpan Editan</>}
+            </button>
+            <button className="s3-btn-outline" onClick={handleResetLetter} style={{ color: '#dc2626', borderColor: '#fca5a5' }}>
+              <RotateCcw size={14} /> Reset
             </button>
           </div>
         </div>
 
         {/* ─── Right Panel ─── */}
         <div className="step3-right-panel">
-          
           <div className="s3-info-card" style={{ marginBottom: '24px' }}>
             <p className="s3-info-title">Informasi Lamaran</p>
-            <div className="s3-info-item">
-              <div className="s3-info-icon"><Building size={16} /></div>
-              <div>
-                <span className="s3-info-label">Perusahaan</span>
-                <span className="s3-info-value">{company}</span>
+            {[
+              { icon: Building, label: 'Perusahaan', val: company },
+              { icon: Briefcase, label: 'Posisi', val: position },
+              { icon: MapPin, label: 'Lokasi', val: location },
+              { icon: User, label: 'Pengalaman', val: experience },
+              { icon: Clock, label: 'Jenis Pekerjaan', val: type },
+              { icon: AlignLeft, label: 'Dokumen & Tujuan Kirim', val: aiData?.description || '-' },
+            ].map(({ icon: Icon, label, val }) => (
+              <div key={label} className="s3-info-item">
+                <div className="s3-info-icon"><Icon size={16} /></div>
+                <div>
+                  <span className="s3-info-label">{label}</span>
+                  <span className="s3-info-value">{val}</span>
+                </div>
               </div>
-            </div>
-            <div className="s3-info-item">
-              <div className="s3-info-icon"><Briefcase size={16} /></div>
-              <div>
-                <span className="s3-info-label">Posisi</span>
-                <span className="s3-info-value">{position}</span>
-              </div>
-            </div>
-            <div className="s3-info-item">
-              <div className="s3-info-icon"><MapPin size={16} /></div>
-              <div>
-                <span className="s3-info-label">Lokasi</span>
-                <span className="s3-info-value">{location}</span>
-              </div>
-            </div>
-            <div className="s3-info-item">
-              <div className="s3-info-icon"><User size={16} /></div>
-              <div>
-                <span className="s3-info-label">Pengalaman</span>
-                <span className="s3-info-value">{experience}</span>
-              </div>
-            </div>
-            <div className="s3-info-item">
-              <div className="s3-info-icon"><Clock size={16} /></div>
-              <div>
-                <span className="s3-info-label">Jenis Pekerjaan</span>
-                <span className="s3-info-value">{type}</span>
-              </div>
-            </div>
-            <div className="s3-info-item">
-              <div className="s3-info-icon"><AlignLeft size={16} /></div>
-              <div>
-                <span className="s3-info-label">Dokumen & Tujuan Kirim</span>
-                <span className="s3-info-value">{aiData?.description || '-'}</span>
-              </div>
-            </div>
+            ))}
           </div>
 
           <p className="s3-info-title">Daftar Lampiran yang Akan Disertakan</p>
@@ -614,36 +713,38 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
 
           <div className="s3-attach-list">
             {loadingDocs ? (
-              <div style={{textAlign:'center', padding:'20px', color:'var(--text-muted)', fontSize:'13px'}}>
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '13px' }}>
                 <Loader2 size={20} className="spin" /> Memuat dokumen...
               </div>
             ) : attachments.length === 0 ? (
-              <div style={{textAlign:'center', padding:'20px', color:'var(--text-muted)', fontSize:'13px'}}>
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '13px' }}>
                 Belum ada dokumen. Upload dulu di menu "Dokumen Saya".
               </div>
             ) : (
               attachments.map((item, index) => (
                 <div key={item.id} className="s3-attach-item" style={{ gap: '8px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <button 
-                      disabled={index === 0} 
-                      onClick={() => moveAttachment(index, -1)}
+                    <button
+                      disabled={index === 0}
+                      onClick={() => {
+                        const arr = [...attachments];
+                        [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+                        setAttachments(arr);
+                      }}
                       style={{ background: 'none', border: 'none', cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.3 : 1, padding: 0 }}
-                      title="Geser Ke Atas"
-                    >
-                      <ChevronUp size={14} color="var(--text-main)" />
-                    </button>
-                    <button 
-                      disabled={index === attachments.length - 1} 
-                      onClick={() => moveAttachment(index, 1)}
+                    ><ChevronUp size={14} color="var(--text-main)" /></button>
+                    <button
+                      disabled={index === attachments.length - 1}
+                      onClick={() => {
+                        const arr = [...attachments];
+                        [arr[index + 1], arr[index]] = [arr[index], arr[index + 1]];
+                        setAttachments(arr);
+                      }}
                       style={{ background: 'none', border: 'none', cursor: index === attachments.length - 1 ? 'default' : 'pointer', opacity: index === attachments.length - 1 ? 0.3 : 1, padding: 0 }}
-                      title="Geser Ke Bawah"
-                    >
-                      <ChevronDown size={14} color="var(--text-main)" />
-                    </button>
+                    ><ChevronDown size={14} color="var(--text-main)" /></button>
                   </div>
                   <span className="s3-attach-name" style={{ flex: 1 }}>{cleanFileName(item.name)}</span>
-                  <button className="s3-btn-del" onClick={() => removeAttachment(item.id)}>
+                  <button className="s3-btn-del" onClick={() => setAttachments(prev => prev.filter(a => a.id !== item.id))}>
                     <Trash2 size={15} />
                   </button>
                 </div>
@@ -651,25 +752,24 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
             )}
           </div>
         </div>
-
       </div>
 
       {/* Footer Nav */}
       <div className="s3-nav-footer" style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
         <button className="s3-nav-back" onClick={onBack} disabled={isMerging}><ArrowLeft size={16} /> Kembali</button>
-        <button className="s3-nav-next" style={{ background: '#ef4444' }} onClick={() => handleMergeAndSave(true)} disabled={isMerging}>
-          {isMerging ? (
-            <><Loader2 size={16} className="spin" /> Memproses...</>
-          ) : (
-            <><Mail size={16} /> Kirim via Gmail</>
-          )}
+        <button
+          className="s3-nav-next"
+          style={{ background: '#ea4335' }}
+          onClick={() => setShowGmailModal(true)}
+          disabled={isMerging}
+        >
+          <Mail size={16} /> Kirim via Gmail
         </button>
-        <button className="s3-nav-next" onClick={() => handleMergeAndSave(false)} disabled={isMerging}>
-          {isMerging ? (
-            <><Loader2 size={16} className="spin" /> Memproses...</>
-          ) : (
-            <><Download size={16} /> Selesai & Unduh PDF</>
-          )}
+        <button className="s3-nav-next" onClick={handleMergeAndSave} disabled={isMerging}>
+          {isMerging
+            ? <><Loader2 size={16} className="spin" /> Memproses...</>
+            : <><Download size={16} /> Selesai &amp; Unduh PDF</>
+          }
         </button>
       </div>
       {mergeError && <div style={{ color: 'red', textAlign: 'center', marginTop: '10px', fontSize: '13px' }}>{mergeError}</div>}

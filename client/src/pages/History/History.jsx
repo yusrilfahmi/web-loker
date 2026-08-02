@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Briefcase, MapPin, Clock, Building, Plus, ChevronRight, FileText, AlertCircle, User, Mail, GraduationCap, AlignLeft, X, Trash2, Search } from 'lucide-react';
+import GmailModal from '../../components/GmailModal/GmailModal';
 import '../ApplicationFlow/Step2Analysis.css';
 import './History.css';
 
@@ -12,6 +13,7 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [gmailApp, setGmailApp] = useState(null); // app selected for gmail modal
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,45 +43,8 @@ const History = () => {
   };
 
   const handleGmailDraft = (app) => {
-    try {
-      const to = app?.email && app.email !== 'Tidak disebutkan' ? app.email : '';
-      const pos = app?.position || 'Pekerjaan';
-      const comp = app?.company || 'Perusahaan';
-      const userName = user?.user_metadata?.full_name || user?.email || 'Yusril Fahmi';
-      
-      const subject = `${pos} - ${userName}`;
-      
-      const bodyText = `Yth. Tim Rekrutmen ${comp}
-
-Dengan hormat,
-
-Sehubungan dengan informasi lowongan pekerjaan yang dibuka oleh ${comp} untuk posisi ${pos}, melalui email ini saya bermaksud untuk mengajukan diri guna mengisi posisi tersebut.
-
-Saya adalah lulusan S1 Teknik Informatika yang memiliki ketertarikan kuat serta keahlian yang relevan.
-
-Sebagai bahan pertimbangan Bapak/Ibu, bersama email ini saya lampirkan berkas dokumen lamaran kerja lengkap (Curriculum Vitae, Surat Lamaran, dan lampiran pendukung) dalam format PDF.
-
-Besar harapan saya untuk diberikan kesempatan mengikuti tahapan seleksi selanjutnya agar dapat mendiskusikan bagaimana kualifikasi saya dapat berkontribusi positif bagi ${comp}.
-
-Terima kasih atas waktu, perhatian, dan kesempatan yang Bapak/Ibu berikan.
-
-Hormat saya,
-
-${userName}`;
-
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
-      
-      const a = document.createElement('a');
-      a.href = gmailUrl;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error('Error opening Gmail:', err);
-      alert('Gagal membuka Gmail: ' + err.message);
-    }
+    setGmailApp(app);
+    setSelectedApp(null); // close detail modal
   };
 
   const statusConfig = {
@@ -128,8 +93,17 @@ ${userName}`;
     e.target.style.display = 'none';
   };
 
+  const userProfileStored = JSON.parse(localStorage.getItem('userProfile') || '{}');
+
   return (
     <div className="history-page">
+      {/* Gmail Template Modal */}
+      <GmailModal
+        isOpen={!!gmailApp}
+        onClose={() => setGmailApp(null)}
+        aiData={gmailApp}
+        userProfile={{ ...userProfileStored, full_name: userProfileStored.full_name || user?.user_metadata?.full_name || user?.email }}
+      />
       <div className="history-header">
         <div className="history-header-title">
           <h1>Riwayat Lamaran</h1>
@@ -300,7 +274,7 @@ ${userName}`;
                               alignItems: 'center', gap: '4px' 
                             }}
                           >
-                            <Mail size={13} /> Kirim Gmail (Draft)
+                            <Mail size={13} /> Pilih Template & Kirim Gmail
                           </button>
                         )}
                       </span>

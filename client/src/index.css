@@ -1,31 +1,57 @@
+/* ═══════════════════════════════════════════
+   GLOBAL CSS VARIABLES & RESET
+═══════════════════════════════════════════ */
 :root {
-  --primary: #4F46E5; /* Indigo 600 */
+  --primary: #4F46E5;
+  --primary-dark: #4338CA;
   --primary-hover: #4338ca;
-  --bg-light: #F9FAFB; /* Gray 50 */
-  --text-main: #111827; /* Gray 900 */
-  --text-muted: #6B7280; /* Gray 500 */
-  --border-color: #E5E7EB; /* Gray 200 */
+  --primary-light: #EEF2FF;
+  --secondary: #7C3AED;
+  --bg-light: #F4F6FB;
+  --bg-card: #ffffff;
+  --text-main: #0F172A;
+  --text-sub: #334155;
+  --text-muted: #64748B;
+  --border-color: #E2E8F0;
+  --border-hover: #CBD5E1;
   --white: #ffffff;
   --success: #10B981;
-  --font-family: 'Inter', sans-serif;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --success-bg: #ECFDF5;
+  --danger: #EF4444;
+  --danger-bg: #FEF2F2;
+  --warning: #F59E0B;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 24px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.06);
+  --shadow-xl: 0 20px 40px rgba(0,0,0,0.12), 0 8px 16px rgba(0,0,0,0.06);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-* {
+/* ── Reset ── */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   font-family: var(--font-family);
   background-color: var(--bg-light);
   color: var(--text-main);
-  line-height: 1.5;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 a {
@@ -39,3 +65,17 @@ button {
   border: none;
   outline: none;
 }
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* ── Scrollbar styling ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+/* ── Selection ── */
+::selection { background: #EEF2FF; color: var(--primary); }
