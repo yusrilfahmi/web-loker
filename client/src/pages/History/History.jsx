@@ -8,7 +8,7 @@ import '../ApplicationFlow/Step2Analysis.css';
 import './History.css';
 
 const History = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState(null);
@@ -22,8 +22,6 @@ const History = () => {
 
   const fetchApplications = async () => {
     setLoading(true);
-    const deletedIds = JSON.parse(localStorage.getItem('deleted_app_ids') || '[]');
-
     const currentUser = user || (await supabase.auth.getUser()).data?.user;
     if (!currentUser) {
       setLoading(false);
@@ -37,7 +35,7 @@ const History = () => {
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      setApplications(data.filter(app => !deletedIds.includes(app.id)));
+      setApplications(data);
     }
     setLoading(false);
   };
@@ -62,14 +60,8 @@ const History = () => {
     e.stopPropagation();
     if (!window.confirm("Apakah Anda yakin ingin menghapus riwayat lamaran ini?")) return;
     
-    // Simpan ID yang dihapus ke localStorage agar tidak kembali saat di-refresh
-    const deletedIds = JSON.parse(localStorage.getItem('deleted_app_ids') || '[]');
-    if (!deletedIds.includes(id)) {
-      localStorage.setItem('deleted_app_ids', JSON.stringify([...deletedIds, id]));
-    }
-    
+    // Hapus langsung dari Supabase
     setApplications(prev => prev.filter(app => app.id !== id));
-
     try {
       await supabase.from('applications').delete().eq('id', id);
     } catch (err) {
@@ -93,7 +85,7 @@ const History = () => {
     e.target.style.display = 'none';
   };
 
-  const userProfileStored = JSON.parse(localStorage.getItem('userProfile') || '{}');
+  const userProfileStored = profile || {};
 
   return (
     <div className="history-page">

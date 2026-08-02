@@ -198,6 +198,11 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
   const [hasSignature, setHasSignature] = useState(false);
   const [sigBase64, setSigBase64] = useState(null);
 
+  // Draggable signature state
+  const [isDraggingSig, setIsDraggingSig] = useState(false);
+  const [sigOffset, setSigOffset] = useState({ top: 0, right: 0 });
+  const dragStartRef = useRef(null);
+
   const [isMerging, setIsMerging] = useState(false);
   const [mergeError, setMergeError] = useState('');
 
@@ -243,7 +248,7 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
   }, []);
 
   const initData = async () => {
-    // 1. Load user profile
+    // 1. Load user profile directly from Supabase (no localStorage)
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -253,9 +258,7 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
       .eq('id', user.id)
       .single();
 
-    const prof = profileData || JSON.parse(localStorage.getItem('userProfile') || '{}');
-    setUserProfile(prof);
-    localStorage.setItem('userProfile', JSON.stringify(prof));
+    setUserProfile(profileData || {});
 
     // 2. Load signature from Supabase Storage
     if (profileData?.signature_path) {
@@ -303,10 +306,9 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
       .eq('user_id', user.id)
       .order('created_at', { ascending: true });
     if (data) {
-      const savedRenames = JSON.parse(localStorage.getItem('renamed_doc_names') || '{}');
       setAttachments(data.map(d => ({
         id: d.id,
-        name: savedRenames[d.id] || d.file_name,
+        name: d.file_name,
         storage_path: d.storage_path
       })));
     }

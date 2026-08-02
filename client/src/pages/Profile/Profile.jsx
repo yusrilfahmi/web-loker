@@ -80,31 +80,23 @@ const Profile = () => {
 
   const loadProfile = async () => {
     setLoading(true);
-    const local = JSON.parse(localStorage.getItem('userProfile') || '{}');
     const { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
 
-    // Filter out null/undefined from DB so they don't wipe localStorage data
-    const dbClean = data
-      ? Object.fromEntries(Object.entries(data).filter(([, v]) => v != null))
-      : {};
-
     const merged = {
       full_name: '', email: user?.email || '', phone: '', address: '',
       birthplace: '', birthdate: '', education: '', major: '', gpa: '',
       marital_status: 'Belum menikah',
-      ...local,
-      ...dbClean,
-      email: user?.email || local.email || '',
+      ...(data || {}),
+      email: user?.email || '',
     };
 
     setProfile(merged);
-    localStorage.setItem('userProfile', JSON.stringify(merged));
 
-    const sigPath = dbClean?.signature_path || local?.signature_path;
+    const sigPath = data?.signature_path;
     if (sigPath) {
       try {
         const { data: urlData } = await supabase.storage
@@ -119,11 +111,7 @@ const Profile = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    // 1. Simpan selalu ke localStorage secara lengkap
-    const fullProfileData = { ...profile, id: user.id };
-    localStorage.setItem('userProfile', JSON.stringify(fullProfileData));
-
-    // 2. Persiapkan payload untuk Supabase DB (tanpa email)
+    // Persiapkan payload untuk Supabase DB (tanpa email)
     let payload = { ...profile };
     delete payload.email;
 
@@ -210,7 +198,6 @@ const Profile = () => {
       id: user.id, signature_path: path
     });
     setProfile(p => ({ ...p, signature_path: path }));
-    localStorage.setItem('userProfile', JSON.stringify({ ...profile, id: user.id, signature_path: path }));
 
     const { data: urlData } = await supabase.storage
       .from('signatures').createSignedUrl(path, 3600);
@@ -242,9 +229,6 @@ const Profile = () => {
     await supabase.from('profiles').upsert({ id: user.id, signature_path: null });
     setSigUrl(null);
     setProfile(p => ({ ...p, signature_path: null }));
-    const stored = JSON.parse(localStorage.getItem('userProfile') || '{}');
-    delete stored.signature_path;
-    localStorage.setItem('userProfile', JSON.stringify(stored));
     setMsg({ text: 'Tanda tangan dihapus.', type: 'success' });
     setTimeout(() => setMsg({ text: '', type: '' }), 3000);
   };

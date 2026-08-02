@@ -22,23 +22,13 @@ export const AuthProvider = ({ children }) => {
 
   const loadProfile = async (userId) => {
     if (!userId) return;
-    const local = JSON.parse(localStorage.getItem('userProfile') || '{}');
     const { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
-    // Filter out null/undefined values from Supabase so they don't override localStorage
-    const dbClean = data
-      ? Object.fromEntries(Object.entries(data).filter(([, v]) => v != null))
-      : {};
-
-    const merged = { ...local, ...dbClean };
-    setProfile(merged);
-    if (Object.keys(merged).length > 0) {
-      localStorage.setItem('userProfile', JSON.stringify(merged));
-    }
+    setProfile(data || {});
     setProfileLoaded(true);
     setLoading(false);
   };
@@ -85,7 +75,6 @@ export const AuthProvider = ({ children }) => {
     if (error) console.error("Error signing out:", error.message);
     setProfile(null);
     setProfileLoaded(false);
-    localStorage.removeItem('userProfile');
   };
 
   const refreshProfile = async () => {
