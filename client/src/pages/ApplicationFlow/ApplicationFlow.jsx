@@ -7,20 +7,34 @@ import './ApplicationFlow.css';
 
 const ApplicationFlow = () => {
   const [currentStep, setCurrentStep] = useState(() => {
-    const saved = sessionStorage.getItem('appFlowState');
-    return saved ? JSON.parse(saved).currentStep || 1 : 1;
+    try {
+      const saved = sessionStorage.getItem('appFlowState');
+      return saved ? (JSON.parse(saved)?.currentStep || 1) : 1;
+    } catch (e) {
+      return 1;
+    }
   });
   const [jobImage, setJobImage] = useState(() => {
-    const saved = sessionStorage.getItem('appFlowState');
-    return saved ? JSON.parse(saved).jobImage || null : null;
+    try {
+      const saved = sessionStorage.getItem('appFlowState');
+      return saved ? (JSON.parse(saved)?.jobImage || null) : null;
+    } catch (e) {
+      return null;
+    }
   });
   const [aiData, setAiData] = useState(() => {
-    const saved = sessionStorage.getItem('appFlowState');
-    return saved ? JSON.parse(saved).aiData || null : null;
+    try {
+      const saved = sessionStorage.getItem('appFlowState');
+      return saved ? (JSON.parse(saved)?.aiData || null) : null;
+    } catch (e) {
+      return null;
+    }
   });
 
   useEffect(() => {
-    sessionStorage.setItem('appFlowState', JSON.stringify({ currentStep, jobImage, aiData }));
+    try {
+      sessionStorage.setItem('appFlowState', JSON.stringify({ currentStep, jobImage, aiData }));
+    } catch (e) {}
   }, [currentStep, jobImage, aiData]);
 
   const handleComplete = () => {
