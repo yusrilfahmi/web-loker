@@ -257,47 +257,123 @@
 }
 .crop-modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
 }
 .crop-modal-header h3 {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+}
+.crop-modal-subtitle {
+  font-size: 12.5px;
+  color: #6b7280;
+  margin-top: 4px;
+  line-height: 1.4;
 }
 .crop-modal-close {
   width: 36px; height: 36px;
-  border: 1px solid var(--border-color);
   border-radius: 50%;
+  border: 1px solid var(--border-color);
   background: white;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  color: var(--text-muted);
-  transition: all 0.2s;
+  color: #9ca3af;
+  transition: all 0.15s;
+  flex-shrink: 0;
 }
-.crop-modal-close:hover { background: #f3f4f6; color: var(--text-main); }
+.crop-modal-close:hover { background: #f3f4f6; color: #374151; }
 .crop-container {
   position: relative;
   width: 100%;
-  height: 220px;
+  height: 260px;
   border-radius: 12px;
   overflow: hidden;
-  background: #111;
+  background: #f0f0f0;
+  border: 2px solid var(--border-color);
 }
 .crop-zoom-bar {
   display: flex;
   align-items: center;
   gap: 10px;
   color: var(--text-muted);
+  background: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
 }
 .crop-zoom-slider {
   flex: 1;
   accent-color: var(--primary);
   height: 4px;
 }
+.crop-zoom-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  min-width: 38px;
+  text-align: right;
+}
 .crop-modal-footer {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* ── Preview Stage (Step 1) ── */
+.sig-preview-stage {
+  background: #ffffff;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  min-height: 120px;
+  max-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 16px;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.04);
+  background-image:
+    linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
+    linear-gradient(-45deg, #f0f0f0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f0f0f0 75%),
+    linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  background-color: #ffffff;
+}
+.sig-preview-stage-img {
+  max-width: 100%;
+  max-height: 240px;
+  width: auto;
+  height: auto;
+  display: block;
+  background: white;
+}
+
+/* ── Crop button (Step 1) ── */
+.sig-btn-crop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 1.5px solid var(--primary);
+  background: var(--primary-light, #EEF2FF);
+  color: var(--primary);
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+  font-family: inherit;
+}
+.sig-btn-crop:hover {
+  background: var(--primary);
+  color: white;
+  transform: translateY(-1px);
 }
 
 /* ── Responsive ── */

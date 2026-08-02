@@ -3,24 +3,52 @@ import Cropper from 'react-easy-crop';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  User, Mail, Phone, MapPin, Edit3, Save, X, Camera,
-  Upload, Trash2, CheckCircle, AlertCircle, PenTool, ZoomIn, ZoomOut, RefreshCw
+  User, Mail, Phone, MapPin, Edit3, Save, X,
+  Upload, Trash2, CheckCircle, AlertCircle, PenTool, ZoomIn, ZoomOut, RefreshCw, Crop, Image
 } from 'lucide-react';
 import './Profile.css';
 
 // Helper: create cropped image blob from canvas
 async function getCroppedImg(imageSrc, pixelCrop) {
-  const image = await createImageBitmap(await (await fetch(imageSrc)).blob());
-  const canvas = document.createElement('canvas');
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(
-    image,
-    pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
-    0, 0, pixelCrop.width, pixelCrop.height
-  );
-  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = pixelCrop.width;
+      canvas.height = pixelCrop.height;
+      const ctx = canvas.getContext('2d');
+      // White background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(
+        img,
+        pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
+        0, 0, pixelCrop.width, pixelCrop.height
+      );
+      canvas.toBlob(resolve, 'image/png');
+    };
+    img.onerror = reject;
+    img.src = imageSrc;
+  });
+}
+
+// Helper: convert full image to blob (no crop)
+async function getFullImageBlob(imageSrc) {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(resolve, 'image/png');
+    };
+    img.onerror = reject;
+    img.src = imageSrc;
+  });
 }
 
 const Profile = () => {
@@ -36,10 +64,11 @@ const Profile = () => {
   const [msg, setMsg] = useState({ text: '', type: '' });
 
   // Signature states
-  const [sigUrl, setSigUrl] = useState(null);           // URL displayed in profile
+  const [sigUrl, setSigUrl] = useState(null);
   const [sigUploading, setSigUploading] = useState(false);
-  const [showCropModal, setShowCropModal] = useState(false);
-  const [rawImageSrc, setRawImageSrc] = useState(null); // raw file for cropping
+  // Modal step: null | 'preview' | 'crop'
+  const [sigModalStep, setSigModalStep] = useState(null);
+  const [rawImageSrc, setRawImageSrc] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
@@ -105,7 +134,7 @@ const Profile = () => {
     const reader = new FileReader();
     reader.onload = () => {
       setRawImageSrc(reader.result);
-      setShowCropModal(true);
+      setSigModalStep('preview'); // Step 1: tampilkan preview dulu
       setCrop({ x: 0, y: 0 });
       setZoom(1);
     };
@@ -113,39 +142,59 @@ const Profile = () => {
     e.target.value = '';
   };
 
+  const closeSigModal = () => {
+    setSigModalStep(null);
+    setRawImageSrc(null);
+  };
+
   const onCropComplete = useCallback((_, croppedPixels) => {
     setCroppedAreaPixels(croppedPixels);
   }, []);
+
+  // Upload langsung tanpa crop
+  const handleSaveDirect = async () => {
+    if (!rawImageSrc) return;
+    setSigUploading(true);
+    try {
+      const blob = await getFullImageBlob(rawImageSrc);
+      await uploadSigBlob(blob);
+    } catch (err) {
+      setMsg({ text: 'Gagal upload: ' + err.message, type: 'error' });
+    } finally {
+      setSigUploading(false);
+    }
+  };
+
+  // Helper upload blob ke Supabase
+  const uploadSigBlob = async (blob) => {
+    const path = `${user.id}/signature.png`;
+    const { error: upErr } = await supabase.storage
+      .from('signatures')
+      .upload(path, blob, { contentType: 'image/png', upsert: true });
+    if (upErr) throw upErr;
+
+    await supabase.from('profiles').upsert({
+      id: user.id, signature_path: path, updated_at: new Date().toISOString()
+    });
+    setProfile(p => ({ ...p, signature_path: path }));
+    localStorage.setItem('userProfile', JSON.stringify({ ...profile, id: user.id, signature_path: path }));
+
+    const { data: urlData } = await supabase.storage
+      .from('signatures').createSignedUrl(path, 3600);
+    if (urlData?.signedUrl) setSigUrl(urlData.signedUrl);
+
+    closeSigModal();
+    setMsg({ text: 'Tanda tangan berhasil disimpan!', type: 'success' });
+    setTimeout(() => setMsg({ text: '', type: '' }), 3500);
+    refreshProfile();
+  };
 
   const handleCropConfirm = async () => {
     if (!croppedAreaPixels || !rawImageSrc) return;
     setSigUploading(true);
     try {
       const blob = await getCroppedImg(rawImageSrc, croppedAreaPixels);
-      const path = `${user.id}/signature.png`;
-      const { error: upErr } = await supabase.storage
-        .from('signatures')
-        .upload(path, blob, { contentType: 'image/png', upsert: true });
-      if (upErr) throw upErr;
-
-      // Save path to profile
-      await supabase.from('profiles').upsert({
-        id: user.id, signature_path: path, updated_at: new Date().toISOString()
-      });
-      setProfile(p => ({ ...p, signature_path: path }));
-      localStorage.setItem('userProfile', JSON.stringify({ ...profile, id: user.id, signature_path: path }));
-
-      // Get signed URL to display
-      const { data: urlData } = await supabase.storage
-        .from('signatures')
-        .createSignedUrl(path, 3600);
-      if (urlData?.signedUrl) setSigUrl(urlData.signedUrl);
-
-      setShowCropModal(false);
-      setRawImageSrc(null);
-      setMsg({ text: 'Tanda tangan berhasil diupload!', type: 'success' });
-      setTimeout(() => setMsg({ text: '', type: '' }), 3500);
-      refreshProfile();
+      await uploadSigBlob(blob);
     } catch (err) {
       setMsg({ text: 'Gagal upload tanda tangan: ' + err.message, type: 'error' });
     } finally {
@@ -319,49 +368,96 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Crop Modal */}
-      {showCropModal && rawImageSrc && (
-        <div className="crop-modal-overlay">
-          <div className="crop-modal">
-            <div className="crop-modal-header">
-              <h3>✂️ Crop Tanda Tangan</h3>
-              <button className="crop-modal-close" onClick={() => { setShowCropModal(false); setRawImageSrc(null); }}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="crop-container">
-              <Cropper
-                image={rawImageSrc}
-                crop={crop}
-                zoom={zoom}
-                aspect={4 / 1.5}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
-                style={{ containerStyle: { borderRadius: '12px' } }}
-              />
-            </div>
-            <div className="crop-zoom-bar">
-              <ZoomOut size={16} />
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={0.05}
-                value={zoom}
-                onChange={e => setZoom(Number(e.target.value))}
-                className="crop-zoom-slider"
-              />
-              <ZoomIn size={16} />
-            </div>
-            <div className="crop-modal-footer">
-              <button className="btn-cancel" onClick={() => { setShowCropModal(false); setRawImageSrc(null); }}>
-                <X size={15} /> Batal
-              </button>
-              <button className="btn-save" onClick={handleCropConfirm} disabled={sigUploading}>
-                <Save size={15} /> {sigUploading ? 'Mengupload...' : 'Simpan Tanda Tangan'}
-              </button>
-            </div>
+      {/* ── Signature Modal (2 step: preview → crop) ── */}
+      {sigModalStep && rawImageSrc && (
+        <div className="crop-modal-overlay" onClick={closeSigModal}>
+          <div className="crop-modal" onClick={e => e.stopPropagation()}>
+
+            {/* ── STEP 1: PREVIEW ── */}
+            {sigModalStep === 'preview' && (
+              <>
+                <div className="crop-modal-header">
+                  <div>
+                    <h3><Image size={18} style={{marginRight:8,verticalAlign:'middle'}}/>Preview Tanda Tangan</h3>
+                    <p className="crop-modal-subtitle">Periksa gambar sebelum disimpan. Perlu dirapikan? Gunakan fitur crop.</p>
+                  </div>
+                  <button className="crop-modal-close" onClick={closeSigModal}><X size={20} /></button>
+                </div>
+
+                {/* Preview dengan background putih */}
+                <div className="sig-preview-stage">
+                  <img src={rawImageSrc} alt="Preview Tanda Tangan" className="sig-preview-stage-img" />
+                </div>
+
+                <div className="crop-modal-footer">
+                  <button className="btn-cancel" onClick={closeSigModal}>
+                    <X size={15} /> Batal
+                  </button>
+                  <button className="sig-btn-crop" onClick={() => { setSigModalStep('crop'); }}>
+                    <Crop size={15} /> Crop / Sesuaikan
+                  </button>
+                  <button className="btn-save" onClick={handleSaveDirect} disabled={sigUploading}>
+                    <Save size={15} /> {sigUploading ? 'Menyimpan...' : 'Simpan Langsung'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ── STEP 2: CROP ── */}
+            {sigModalStep === 'crop' && (
+              <>
+                <div className="crop-modal-header">
+                  <div>
+                    <h3><Crop size={18} style={{marginRight:8,verticalAlign:'middle'}}/>Crop Tanda Tangan</h3>
+                    <p className="crop-modal-subtitle">Seret kotak putih untuk mengatur area yang disimpan. Scroll/pinch untuk zoom.</p>
+                  </div>
+                  <button className="crop-modal-close" onClick={() => setSigModalStep('preview')}><X size={20} /></button>
+                </div>
+
+                <div className="crop-container">
+                  <Cropper
+                    image={rawImageSrc}
+                    crop={crop}
+                    zoom={zoom}
+                    onCropChange={setCrop}
+                    onZoomChange={setZoom}
+                    onCropComplete={onCropComplete}
+                    style={{
+                      containerStyle: {
+                        borderRadius: '12px',
+                        background: '#f8f9fa',
+                      },
+                      mediaStyle: { background: '#ffffff' },
+                    }}
+                    objectFit="contain"
+                    showGrid
+                  />
+                </div>
+
+                <div className="crop-zoom-bar">
+                  <ZoomOut size={16} />
+                  <input
+                    type="range"
+                    min={1} max={4} step={0.05}
+                    value={zoom}
+                    onChange={e => setZoom(Number(e.target.value))}
+                    className="crop-zoom-slider"
+                  />
+                  <ZoomIn size={16} />
+                  <span className="crop-zoom-val">{Math.round(zoom * 100)}%</span>
+                </div>
+
+                <div className="crop-modal-footer">
+                  <button className="btn-cancel" onClick={() => setSigModalStep('preview')}>
+                    ← Kembali
+                  </button>
+                  <button className="btn-save" onClick={handleCropConfirm} disabled={sigUploading}>
+                    <Save size={15} /> {sigUploading ? 'Menyimpan...' : 'Simpan Hasil Crop'}
+                  </button>
+                </div>
+              </>
+            )}
+
           </div>
         </div>
       )}
