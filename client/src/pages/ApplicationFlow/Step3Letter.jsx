@@ -14,7 +14,9 @@ import './Step3Letter.css';
 const cleanFileName = (filename) => filename ? filename.replace(/\.[^/.]+$/, '') : '';
 
 // ── Letter Templates ───────────────────────────────────────────────────────
-const buildTemplates = (company, position, userProfile, attachments) => {
+const buildTemplates = (companyInput, positionInput, userProfile, attachments = []) => {
+  const company  = (companyInput || 'Perusahaan').toString();
+  const position = (positionInput || 'Posisi').toString();
   const name     = userProfile?.full_name    || 'Nama Pelamar';
   const place    = userProfile?.birthplace   || 'Kota';
   const bdate    = userProfile?.birthdate
@@ -28,8 +30,9 @@ const buildTemplates = (company, position, userProfile, attachments) => {
   const phone    = userProfile?.phone        || '-';
   const today    = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
   const cityText = place || 'Kota';
-  const attachList = attachments.length
-    ? attachments.map(a => `<li>${cleanFileName(a.name)}</li>`).join('')
+  const safeAttach = Array.isArray(attachments) ? attachments : [];
+  const attachList = safeAttach.length
+    ? safeAttach.map(a => `<li>${cleanFileName(a.name)}</li>`).join('')
     : '<li>Curriculum Vitae</li><li>Surat Lamaran</li>';
 
   return [
