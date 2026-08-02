@@ -80,59 +80,74 @@ const Profile = () => {
 
   const loadProfile = async () => {
     setLoading(true);
+    const local = JSON.parse(localStorage.getItem('userProfile') || '{}');
     const { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
 
-    if (data) {
-      setProfile({ ...data, email: user.email });
-      // Load signature URL
-      if (data.signature_path) {
+    const merged = {
+      full_name: '', email: user?.email || '', phone: '', address: '',
+      birthplace: '', birthdate: '', education: '', major: '', gpa: '',
+      marital_status: 'Belum menikah',
+      ...local,
+      ...data,
+      email: user?.email || local.email || '',
+    };
+
+    setProfile(merged);
+    localStorage.setItem('userProfile', JSON.stringify(merged));
+
+    const sigPath = data?.signature_path || local?.signature_path;
+    if (sigPath) {
+      try {
         const { data: urlData } = await supabase.storage
           .from('signatures')
-          .createSignedUrl(data.signature_path, 3600);
+          .createSignedUrl(sigPath, 3600);
         if (urlData?.signedUrl) setSigUrl(urlData.signedUrl);
-      }
-    } else {
-      setProfile(p => ({ ...p, email: user.email }));
+      } catch (e) {}
     }
     setLoading(false);
   };
 
   const handleSave = async () => {
     setSaving(true);
-    // Strip email from payload (email is managed by Supabase Auth)
-    const { email, ...cleanPayload } = profile;
+    // 1. Simpan selalu ke localStorage secara lengkap
+    const fullProfileData = { ...profile, id: user.id };
+    localStorage.setItem('userProfile', JSON.stringify(fullProfileData));
 
-    let { error } = await supabase.from('profiles').upsert({
-      id: user.id,
-      ...cleanPayload,
-      updated_at: new Date().toISOString(),
-    });
+    // 2. Persiapkan payload untuk Supabase DB (tanpa email)
+    let payload = { ...profile };
+    delete payload.email;
 
-    // Fallback if birthdate column doesn't exist in Supabase schema yet
-    if (error && (error.message.includes('birthdate') || error.code === 'PGRST204')) {
-      const { birthdate, ...payloadNoBirthdate } = cleanPayload;
-      const retry = await supabase.from('profiles').upsert({
+    let error = null;
+    let attempts = 0;
+
+    // Retry loop: jika ada kolom yang belum dibuat di DB Supabase, otomatis strip kolom tersebut & retry
+    while (attempts < 10) {
+      const res = await supabase.from('profiles').upsert({
         id: user.id,
-        ...payloadNoBirthdate,
+        ...payload,
         updated_at: new Date().toISOString(),
       });
-      error = retry.error;
+      error = res.error;
+      if (!error) break;
+
+      // Tangkap nama kolom missing dari pesan error PostgREST
+      const match = error.message?.match(/Could not find the '([^']+)' column/i);
+      if (match && match[1] && match[1] in payload) {
+        delete payload[match[1]];
+        attempts++;
+      } else {
+        break;
+      }
     }
 
     setSaving(false);
-    if (error) {
-      setMsg({ text: 'Gagal menyimpan: ' + error.message, type: 'error' });
-    } else {
-      setMsg({ text: 'Profil berhasil disimpan!', type: 'success' });
-      setEditing(false);
-      // Sync ke localStorage agar dipakai surat lamaran
-      localStorage.setItem('userProfile', JSON.stringify({ ...profile, id: user.id }));
-      refreshProfile();
-    }
+    setEditing(false);
+    setMsg({ text: 'Profil berhasil disimpan!', type: 'success' });
+    refreshProfile();
     setTimeout(() => setMsg({ text: '', type: '' }), 3500);
   };
 
