@@ -118,10 +118,7 @@ const Profile = () => {
     localStorage.setItem('userProfile', JSON.stringify(fullProfileData));
 
     // 2. Persiapkan payload untuk Supabase DB (tanpa email)
-    let payload = {
-      ...profile,
-      updated_at: new Date().toISOString(),
-    };
+    let payload = { ...profile };
     delete payload.email;
 
     let attempts = 0;
@@ -204,7 +201,7 @@ const Profile = () => {
     if (upErr) throw upErr;
 
     await supabase.from('profiles').upsert({
-      id: user.id, signature_path: path, updated_at: new Date().toISOString()
+      id: user.id, signature_path: path
     });
     setProfile(p => ({ ...p, signature_path: path }));
     localStorage.setItem('userProfile', JSON.stringify({ ...profile, id: user.id, signature_path: path }));
@@ -236,7 +233,7 @@ const Profile = () => {
     if (!window.confirm('Hapus tanda tangan?')) return;
     const path = `${user.id}/signature.png`;
     await supabase.storage.from('signatures').remove([path]);
-    await supabase.from('profiles').upsert({ id: user.id, signature_path: null, updated_at: new Date().toISOString() });
+    await supabase.from('profiles').upsert({ id: user.id, signature_path: null });
     setSigUrl(null);
     setProfile(p => ({ ...p, signature_path: null }));
     const stored = JSON.parse(localStorage.getItem('userProfile') || '{}');
@@ -258,7 +255,7 @@ const Profile = () => {
     { key: 'gpa',            label: 'IPK',                  icon: null,   type: 'text', placeholder: '0.00' },
     { key: 'address',        label: 'Alamat Lengkap',       icon: MapPin, type: 'textarea', placeholder: 'Jl. ... No. ..., Kota' },
     { key: 'marital_status', label: 'Status Pernikahan',    icon: null,   type: 'select',
-      options: ['Belum menikah', 'Sudah menikah', 'Duda/Janda'] },
+      options: ['Belum menikah', 'Sudah menikah'] },
   ];
 
   const initials = profile.full_name

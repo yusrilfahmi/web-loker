@@ -7,10 +7,10 @@ export const useAuth = () => {
   return useContext(AuthContext);
 };
 
-// Profile dianggap lengkap jika minimal punya full_name, phone, education
+// Profile dianggap lengkap jika minimal punya full_name dan (phone atau education)
 const checkProfileComplete = (data) => {
   if (!data) return false;
-  return !!(data.full_name && data.phone && data.education && data.major);
+  return !!(data.full_name && (data.phone || data.education || data.major));
 };
 
 export const AuthProvider = ({ children }) => {
@@ -22,16 +22,17 @@ export const AuthProvider = ({ children }) => {
 
   const loadProfile = async (userId) => {
     if (!userId) return;
+    const local = JSON.parse(localStorage.getItem('userProfile') || '{}');
     const { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
-    if (data) {
-      setProfile(data);
-      localStorage.setItem('userProfile', JSON.stringify(data));
-    } else {
-      setProfile(null);
+
+    const merged = { ...local, ...data };
+    setProfile(merged);
+    if (Object.keys(merged).length > 0) {
+      localStorage.setItem('userProfile', JSON.stringify(merged));
     }
     setProfileLoaded(true);
   };
