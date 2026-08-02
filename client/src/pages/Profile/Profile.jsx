@@ -103,11 +103,26 @@ const Profile = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    const { error } = await supabase.from('profiles').upsert({
+    // Strip email from payload (email is managed by Supabase Auth)
+    const { email, ...cleanPayload } = profile;
+
+    let { error } = await supabase.from('profiles').upsert({
       id: user.id,
-      ...profile,
+      ...cleanPayload,
       updated_at: new Date().toISOString(),
     });
+
+    // Fallback if birthdate column doesn't exist in Supabase schema yet
+    if (error && (error.message.includes('birthdate') || error.code === 'PGRST204')) {
+      const { birthdate, ...payloadNoBirthdate } = cleanPayload;
+      const retry = await supabase.from('profiles').upsert({
+        id: user.id,
+        ...payloadNoBirthdate,
+        updated_at: new Date().toISOString(),
+      });
+      error = retry.error;
+    }
+
     setSaving(false);
     if (error) {
       setMsg({ text: 'Gagal menyimpan: ' + error.message, type: 'error' });

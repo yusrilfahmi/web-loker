@@ -1,11 +1,12 @@
 import React from 'react';
-import { Outlet, Navigate, NavLink } from 'react-router-dom';
+import { Outlet, Navigate, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { BriefcaseBusiness, FileText, User, LogOut, History } from 'lucide-react';
+import { BriefcaseBusiness, FileText, User, LogOut, History, GitMerge } from 'lucide-react';
 import './Layout.css';
 
 const Layout = () => {
-  const { session, user, signOut } = useAuth();
+  const { session, user, signOut, isProfileComplete, profileLoaded } = useAuth();
+  const location = useLocation();
 
   const handleLogout = async () => {
     if (window.confirm('Apakah Anda yakin ingin keluar (logout)?')) {
@@ -17,10 +18,16 @@ const Layout = () => {
     return <Navigate to="/login" replace />;
   }
 
+  // Redirect ke profil jika belum lengkap dan bukan sedang di /profile
+  if (profileLoaded && !isProfileComplete && location.pathname !== '/profile') {
+    return <Navigate to="/profile" replace />;
+  }
+
   const navItems = [
     { to: '/create', icon: BriefcaseBusiness, label: 'Buat Lamaran', end: false },
     { to: '/history', icon: History, label: 'Riwayat', end: false },
     { to: '/', icon: FileText, label: 'Dokumen', end: true },
+    { to: '/merge', icon: GitMerge, label: 'Gabungkan File', end: false },
     { to: '/profile', icon: User, label: 'Profil', end: false },
   ];
 
@@ -70,6 +77,14 @@ const Layout = () => {
           </button>
         </div>
       </nav>
+
+      {/* Profile incomplete banner */}
+      {profileLoaded && !isProfileComplete && location.pathname === '/profile' && (
+        <div className="profile-incomplete-banner">
+          ⚠️ <strong>Lengkapi profil Anda</strong> terlebih dahulu agar bisa menggunakan semua fitur.
+          Isi minimal: Nama, Telepon, Pendidikan, dan Jurusan.
+        </div>
+      )}
 
       {/* ── Main Content ── */}
       <main className="main-content">

@@ -12,6 +12,20 @@
   background: var(--bg-light);
 }
 
+/* ─── Profile Incomplete Banner ─── */
+.profile-incomplete-banner {
+  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+  border-bottom: 1px solid #F59E0B;
+  color: #92400E;
+  padding: 10px 32px;
+  font-size: 13.5px;
+  text-align: center;
+  line-height: 1.5;
+}
+@media (max-width: 768px) {
+  .profile-incomplete-banner { padding: 10px 14px; font-size: 12.5px; }
+}
+
 /* ─── TOP NAVBAR ─── */
 .navbar {
   display: flex;

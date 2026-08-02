@@ -7,6 +7,7 @@ import MyDocuments from './pages/MyDocuments/MyDocuments';
 import ApplicationFlow from './pages/ApplicationFlow/ApplicationFlow';
 import History from './pages/History/History';
 import Profile from './pages/Profile/Profile';
+import MergeFiles from './pages/MergeFiles/MergeFiles';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="create" element={<ApplicationFlow />} />
             <Route path="history" element={<History />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="merge" element={<MergeFiles />} />
           </Route>
         </Routes>
       </BrowserRouter>

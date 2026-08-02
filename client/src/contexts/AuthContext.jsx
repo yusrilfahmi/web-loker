@@ -7,11 +7,18 @@ export const useAuth = () => {
   return useContext(AuthContext);
 };
 
+// Profile dianggap lengkap jika minimal punya full_name, phone, education
+const checkProfileComplete = (data) => {
+  if (!data) return false;
+  return !!(data.full_name && data.phone && data.education && data.major);
+};
+
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   const loadProfile = async (userId) => {
     if (!userId) return;
@@ -23,7 +30,10 @@ export const AuthProvider = ({ children }) => {
     if (data) {
       setProfile(data);
       localStorage.setItem('userProfile', JSON.stringify(data));
+    } else {
+      setProfile(null);
     }
+    setProfileLoaded(true);
   };
 
   useEffect(() => {
@@ -31,13 +41,14 @@ export const AuthProvider = ({ children }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) loadProfile(session.user.id);
-      else setLoading(false);
+      else { setLoading(false); setProfileLoaded(true); }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) loadProfile(session.user.id);
+      else { setProfileLoaded(true); }
       setLoading(false);
     });
 
@@ -63,12 +74,15 @@ export const AuthProvider = ({ children }) => {
     const { error } = await supabase.auth.signOut();
     if (error) console.error("Error signing out:", error.message);
     setProfile(null);
+    setProfileLoaded(false);
     localStorage.removeItem('userProfile');
   };
 
   const refreshProfile = async () => {
     if (user) await loadProfile(user.id);
   };
+
+  const isProfileComplete = checkProfileComplete(profile);
 
   const value = {
     session,
@@ -78,6 +92,8 @@ export const AuthProvider = ({ children }) => {
     refreshProfile,
     signInWithGoogle,
     signOut,
+    isProfileComplete,
+    profileLoaded,
   };
 
   return (

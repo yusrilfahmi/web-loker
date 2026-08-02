@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Building, MapPin, Briefcase, User, Clock,
-  Wand2, Edit3, Undo, Redo, Bold, Italic, Underline,
+  Edit3, Undo, Redo, Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight,
-  Trash2, Plus, ArrowLeft, ArrowRight, Download, PenTool, FileText, Loader2,
-  ChevronUp, ChevronDown, Mail, Layers, Save, RotateCcw, X, CheckSquare
+  Trash2, ArrowLeft, Download, PenTool, FileText, Loader2,
+  ChevronUp, ChevronDown, Mail, Layers, Save, RotateCcw, X, CheckSquare, Eye
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -198,15 +198,8 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
   const [isMerging, setIsMerging] = useState(false);
   const [mergeError, setMergeError] = useState('');
 
-  const [sigOffset, setSigOffset] = useState({ top: 15, right: 10 });
-  const [isDraggingSig, setIsDraggingSig] = useState(false);
-  const dragStartRef = useRef({ mouseX: 0, mouseY: 0, startTop: 15, startRight: 10 });
-
-  const paperRef = useRef(null);
-  const wrapperRef = useRef(null);
-
-  // Template selector
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [previewTemplateIdx, setPreviewTemplateIdx] = useState(0); // preview tab in modal
   // Gmail modal
   const [showGmailModal, setShowGmailModal] = useState(false);
   // Save indicator
@@ -354,11 +347,14 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
     const templates = buildTemplates(company, position, userProfile, attachments);
     if (paperRef.current) {
       paperRef.current.innerHTML = templates[idx].html;
-      setHasSignature(false);
+      // Remove old sig overlay
+      if (hasSignature && sigBase64) {
+        injectSignatureIntoPaper(paperRef.current, sigBase64);
+      }
     }
     setShowTemplateModal(false);
     sessionStorage.removeItem(SESSION_KEY);
-  }, [userProfile, attachments, aiData]);
+  }, [userProfile, attachments, aiData, hasSignature, sigBase64]);
 
   // ── Save edits ─────────────────────────────────────────────────────────────
   const handleSaveEdits = () => {
@@ -382,51 +378,26 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
     dragStartRef.current = { mouseX: e.clientX, mouseY: e.clientY, startTop: sigOffset.top, startRight: sigOffset.right };
   };
 
+  // ── Inject signature into paper HTML at signoff container ─────────────────
+  const injectSignatureIntoPaper = (el, base64) => {
+    // remove existing sig overlay first
+    el.querySelectorAll('.sig-in-paper').forEach(n => n.remove());
+    const container = el.querySelector('.ltr-signoff-container');
+    if (!container) return;
+    container.style.position = 'relative';
+    const sigEl = document.createElement('div');
+    sigEl.className = 'sig-in-paper';
+    sigEl.style.cssText = 'position:absolute;bottom:22px;right:0;';
+    sigEl.innerHTML = `<img src="${base64}" alt="Tanda Tangan" style="height:72px;width:auto;display:block;" />`;
+    container.appendChild(sigEl);
+  };
+
   const getFinalLetterHtml = () => {
     if (!paperRef.current) return '';
     const clone = paperRef.current.cloneNode(true);
+    // sig is already injected in paper, just clean up drag badge if any
     clone.querySelectorAll('.sig-drag-badge').forEach(b => b.remove());
-
-    if (hasSignature && sigBase64) {
-      const container = clone.querySelector('.ltr-signoff-container');
-      if (container) {
-        let sigEl = container.querySelector('.floating-signature-overlay');
-        if (!sigEl) {
-          sigEl = document.createElement('div');
-          sigEl.className = 'floating-signature-overlay';
-          container.appendChild(sigEl);
-        }
-        sigEl.style.cssText = `position:absolute;top:${sigOffset.top}px;right:${sigOffset.right}px;z-index:100;`;
-        sigEl.innerHTML = `<img src="${sigBase64}" alt="Tanda Tangan" style="height:75px;width:auto;display:block;" />`;
-      }
-    } else {
-      clone.querySelector('.floating-signature-overlay')?.remove();
-    }
     return clone.innerHTML;
-  };
-
-  // ── AI Generate ────────────────────────────────────────────────────────────
-  const handleGenerateAI = async () => {
-    setGeneratingAI(true);
-    setAiError('');
-    try {
-      const res = await fetch('https://web-loker-5vpr.vercel.app/api/generate-letter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobData: aiData, userProfile }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      if (paperRef.current) {
-        paperRef.current.innerHTML = data.letter;
-        setHasSignature(false);
-        sessionStorage.removeItem(SESSION_KEY);
-      }
-    } catch (err) {
-      setAiError('Gagal generate surat: ' + err.message);
-    } finally {
-      setGeneratingAI(false);
-    }
   };
 
   // ── Print ──────────────────────────────────────────────────────────────────
@@ -535,33 +506,73 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
     }
   };
 
+  // toggle sig in paper
+  const handleToggleSignature = () => {
+    if (!paperRef.current) return;
+    if (hasSignature) {
+      // remove
+      paperRef.current.querySelectorAll('.sig-in-paper').forEach(n => n.remove());
+      setHasSignature(false);
+    } else {
+      if (!sigBase64) {
+        alert('Tanda tangan belum diupload. Silakan upload di halaman Profil.');
+        return;
+      }
+      injectSignatureIntoPaper(paperRef.current, sigBase64);
+      setHasSignature(true);
+    }
+  };
+
   const company  = aiData?.company   || 'PT PERUSAHAAN';
   const position = aiData?.position  || 'Posisi';
   const location = aiData?.location  || '-';
   const experience = aiData?.experience || '-';
   const type     = aiData?.type      || '-';
 
+  // template list untuk preview
+  const templateList = buildTemplates(company, position, userProfile, attachments);
+
   return (
     <div className="step3-container">
-      {/* ── Template Modal ── */}
+      {/* ── Template Modal with Preview ── */}
       {showTemplateModal && (
         <div className="template-modal-overlay" onClick={() => setShowTemplateModal(false)}>
-          <div className="template-modal" onClick={e => e.stopPropagation()}>
+          <div className="template-modal template-modal-wide" onClick={e => e.stopPropagation()}>
             <div className="template-modal-header">
               <h3><Layers size={18} style={{ marginRight: 8, verticalAlign: 'middle' }} />Pilih Template Surat</h3>
               <button onClick={() => setShowTemplateModal(false)} className="template-modal-close"><X size={18} /></button>
             </div>
-            <p className="template-modal-sub">Pilih salah satu template. Editan saat ini akan diganti.</p>
-            <div className="template-list">
-              {buildTemplates(company, position, userProfile, attachments).map((t, idx) => (
-                <button key={t.id} className="template-card-btn" onClick={() => applyTemplate(idx)}>
-                  <div className="tcb-info">
+            <div className="template-modal-body">
+              {/* Tab list */}
+              <div className="template-tab-list">
+                {templateList.map((t, idx) => (
+                  <button
+                    key={t.id}
+                    className={`template-tab-btn ${previewTemplateIdx === idx ? 'active' : ''}`}
+                    onClick={() => setPreviewTemplateIdx(idx)}
+                  >
                     <span className="tcb-label">{t.label}</span>
                     <span className="tcb-desc">{t.desc}</span>
-                  </div>
-                  <ArrowRight size={16} />
+                  </button>
+                ))}
+              </div>
+              {/* Preview pane */}
+              <div className="template-preview-pane">
+                <div className="template-preview-header">
+                  <Eye size={14} />
+                  <span>Preview: {templateList[previewTemplateIdx]?.label}</span>
+                </div>
+                <div
+                  className="template-preview-content"
+                  dangerouslySetInnerHTML={{ __html: templateList[previewTemplateIdx]?.html || '' }}
+                />
+                <button
+                  className="template-apply-btn"
+                  onClick={() => applyTemplate(previewTemplateIdx)}
+                >
+                  Terapkan Template Ini
                 </button>
-              ))}
+              </div>
             </div>
           </div>
         </div>
@@ -590,15 +601,7 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
               <button className="s3-btn-template" onClick={() => setShowTemplateModal(true)}>
                 <Layers size={14} /> Pilih Template
               </button>
-              <button
-                className="s3-btn-ai"
-                onClick={handleGenerateAI}
-                disabled={generatingAI}
-              >
-                {generatingAI ? <><Loader2 size={14} className="spin" /> Generating...</> : <><Wand2 size={14} /> Generate AI</>}
-              </button>
             </div>
-            {aiError && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '8px' }}>{aiError}</p>}
           </div>
 
           <div className="s3-editor-box">
@@ -637,31 +640,6 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
                   if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '    '); }
                 }}
               />
-
-              {/* Floating signature overlay on paper */}
-              {hasSignature && sigBase64 && (
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-                  <div
-                    className="floating-signature-overlay"
-                    style={{
-                      position: 'absolute',
-                      bottom: `${sigOffset.top + 80}px`,
-                      right: `${sigOffset.right + 20}px`,
-                      pointerEvents: 'all',
-                      cursor: 'grab',
-                    }}
-                    onMouseDown={handleSigMouseDown}
-                  >
-                    <img
-                      src={sigBase64}
-                      alt="Tanda Tangan"
-                      draggable={false}
-                      style={{ height: '75px', width: 'auto', display: 'block', pointerEvents: 'none' }}
-                    />
-                    <div className="sig-drag-badge">Geser ✥</div>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="s3-editor-footer"><span>A4 (210 × 297 mm)</span></div>
@@ -672,7 +650,7 @@ const Step3Letter = ({ jobImage, aiData, onBack, onComplete }) => {
             <button className="s3-btn-outline" onClick={handlePrint}><Download size={14} /> Unduh PDF</button>
             <button
               className={`s3-btn-outline ${hasSignature ? 'active-signature' : ''}`}
-              onClick={() => setHasSignature(prev => !prev)}
+              onClick={handleToggleSignature}
               style={{ borderColor: hasSignature ? 'var(--primary)' : undefined, color: hasSignature ? 'var(--primary)' : undefined, backgroundColor: hasSignature ? '#f5f3ff' : undefined }}
             >
               <PenTool size={14} /> {hasSignature ? 'Hapus Tanda Tangan' : 'Pasang Tanda Tangan'}
